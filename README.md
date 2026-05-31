@@ -8,7 +8,7 @@ By utilizing Cloudflare's `circl` library, PQPG implements the latest FIPS 203, 
 
 - **Hybrid Cryptography:** Natively supports composite algorithms like **X-Wing** (X25519 + ML-KEM-768) and **EdDilithium** (Ed25519/Ed448 + Dilithium) to ensure security even if one cryptographic assumption fails.
 - **Perfect Forward Secrecy (PFS):** Implements a continuous, one-way Symmetric Key Ratchet driven by Extendable-Output Functions (XOFs). Every packet derives a unique ephemeral key, ensuring compromised future states cannot decrypt past messages.
-- **Fiat-Shamir Hardening:** Completely mitigates context-manipulation attacks by hashing the entire message envelope and routing suite *before* generating the Post-Quantum digital signature.
+- **[Fiat-Shamir Hardening](https://github.com/gh4rib/pqpg-cloudflare-circl/blob/main/fiat-shamir-hardening.md):** Completely mitigates context-manipulation attacks by hashing the entire message envelope and routing suite *before* generating the Post-Quantum digital signature.
 - **Crypto-Agility:** Adheres strictly to SOLID principles. The underlying KEM, DSA, AEAD, and XOF implementations are fully decoupled via interfaces, allowing instant swapping of primitives.
 - **ASCII Armor Encoding:** Wraps raw JSON and binary ciphertexts into clean, easily transmittable Base64 ASCII blocks, preventing data corruption across standard text channels.
 
