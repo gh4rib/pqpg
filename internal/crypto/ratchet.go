@@ -11,7 +11,6 @@ type SymmetricRatchet struct {
 }
 
 // NewRatchet initializes the KDF chain with a shared master secret and an XOF engine.
-// The masterSecret typically comes from the successful decapsulation of the Hybrid KEM.
 func NewRatchet(masterSecret []byte, xofEngine XOF) (*SymmetricRatchet, error) {
 	if len(masterSecret) == 0 {
 		return nil, errors.New("master secret cannot be empty")
@@ -20,7 +19,6 @@ func NewRatchet(masterSecret []byte, xofEngine XOF) (*SymmetricRatchet, error) {
 		return nil, errors.New("XOF engine cannot be nil")
 	}
 
-	// Safely copy the master secret to isolate it from external slice mutations.
 	initialChainKey := make([]byte, len(masterSecret))
 	copy(initialChainKey, masterSecret)
 
@@ -30,23 +28,29 @@ func NewRatchet(masterSecret []byte, xofEngine XOF) (*SymmetricRatchet, error) {
 	}, nil
 }
 
-// Advance spins the ratchet forward. It returns the Message Key for the current packet
-// and irreversibly replaces the internal Chain Key to guarantee Perfect Forward Secrecy (PFS).
+// Advance spins the ratchet forward using Domain Separated XOF derivation.
 func (r *SymmetricRatchet) Advance(messageKeySize int) ([]byte, error) {
 	if len(r.chainKey) == 0 {
 		return nil, errors.New("ratchet is exhausted or uninitialized")
 	}
 
-	// We derive a block large enough for both the new Chain Key and the Message Key.
-	deriveSize := len(r.chainKey) + messageKeySize
-	kdfOutput := r.xof.Derive(r.chainKey, deriveSize)
+	// 1. STRICT DOMAIN SEPARATION: Prefix the input to isolate the KDF context
+	domainLabel := []byte("PQPG-v1-KDF-Chain-")
+	kdfInput := append(domainLabel, r.chainKey...)
 
-	// Security: Aggressively zero-out the old chain key from memory immediately.
+	// 2. Derive the expanded key block
+	deriveSize := len(r.chainKey) + messageKeySize
+	kdfOutput := r.xof.Derive(kdfInput, deriveSize)
+
+	// Security: Aggressively zero-out the old chain key and intermediate input buffer
 	for i := range r.chainKey {
 		r.chainKey[i] = 0
 	}
+	for i := range kdfInput {
+		kdfInput[i] = 0
+	}
 
-	// Split the output: First part is the new Chain Key, second part is the Message Key.
+	// Split the output
 	newChainKey := kdfOutput[:len(r.chainKey)]
 	messageKey := kdfOutput[len(r.chainKey):]
 
@@ -55,8 +59,6 @@ func (r *SymmetricRatchet) Advance(messageKeySize int) ([]byte, error) {
 	return messageKey, nil
 }
 
-// Destroy explicitly zeroes the ratchet state in memory when the session concludes
-// to prevent cold-boot attacks and memory scraping.
 func (r *SymmetricRatchet) Destroy() {
 	if r.chainKey != nil {
 		for i := range r.chainKey {

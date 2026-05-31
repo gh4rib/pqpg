@@ -65,7 +65,7 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	fmt.Println(" 3) Hash-Based Maximum (X-Wing + SLH-DSA-SHA2-256s + Ascon-128a + KangarooTwelve)")
 	fmt.Println(" 4) Full Hybrid Maximum (X-Wing + EdDilithium3 + Ascon-128a + KangarooTwelve)")
 	fmt.Print("Choice [1-4]: ")
-	
+
 	profChoice := readInput(reader)
 
 	var kem, dsa, aead, xof string
@@ -97,7 +97,7 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 
 func handleViewKeyrings() {
 	fmt.Println("\n[*] Scanning current directory for local keyrings...")
-	
+
 	files, err := os.ReadDir(".")
 	if err != nil {
 		fmt.Printf("[-] Failed to read directory: %v\n", err)
@@ -129,19 +129,19 @@ func handleViewKeyrings() {
 func handleSend(reader *bufio.Reader) {
 	fmt.Print("\nEnter path to YOUR private folder (e.g., ./keys_alice/private): ")
 	privPath := readInput(reader)
-	
+
 	fmt.Print("Enter path to RECIPIENT'S public folder (e.g., ./keys_bob/public): ")
 	pubPath := readInput(reader)
 
 	fmt.Print("Enter path to the file you want to send (e.g., secret.txt): ")
 	filePath := readInput(reader)
-	
+
 	msgBytes, err := os.ReadFile(filePath)
 	if err != nil {
 		fmt.Printf("[-] Failed to read message file: %v\n", err)
 		return
 	}
-	
+
 	senderKr, err := identity.LoadKeyring(privPath)
 	if err != nil {
 		fmt.Printf("[-] Failed to load private keys: %v\n", err)
@@ -180,7 +180,7 @@ func handleSend(reader *bufio.Reader) {
 func handleReceive(reader *bufio.Reader) {
 	fmt.Print("\nEnter path to YOUR private folder (e.g., ./keys_bob/private): ")
 	privPath := readInput(reader)
-	
+
 	fmt.Print("Enter path to SENDER'S public folder (e.g., ./keys_alice/public): ")
 	pubPath := readInput(reader)
 
@@ -211,8 +211,15 @@ func handleReceive(reader *bufio.Reader) {
 		return
 	}
 
-	fmt.Printf("\n[*] Opening Envelope...\n    Sender Claim: %s\n    Signature Algorithm: %s\n    KEM: %s\n", 
-		env.SenderName, env.DSASuite, env.KEMSuite)
+	// ---- ANTI-REPLAY DEFENSE ----
+	if err := packet.CheckAndCacheMessage(env); err != nil {
+		fmt.Printf("[-] %v\n", err)
+		return
+	}
+	// ----------------------------------
+
+	fmt.Printf("\n[*] Opening Envelope...\n    Sender Claim: %s\n    Timestamp: %v\n    KEM: %s\n",
+		env.SenderName, time.Unix(env.Timestamp, 0).Format(time.RFC1123), env.KEMSuite)
 
 	recovered, err := packet.Open(env, receiverKr, senderProf)
 	if err != nil {
