@@ -6,11 +6,12 @@ By utilizing Cloudflare's `circl` library, PQPG implements the latest FIPS 203, 
 
 ## Core Features & Security Guarantees
 
-- **Hybrid Cryptography:** Natively supports composite algorithms like **X-Wing** (X25519 + ML-KEM-768) and **EdDilithium** (Ed25519/Ed448 + Dilithium) to ensure security even if one cryptographic assumption fails.
-- **Perfect Forward Secrecy (PFS):** Implements a continuous, one-way Symmetric Key Ratchet driven by Extendable-Output Functions (XOFs). Every packet derives a unique ephemeral key, ensuring compromised future states cannot decrypt past messages.
-- **[Fiat-Shamir Hardening](https://github.com/gh4rib/pqpg-cloudflare-circl/blob/main/fiat-shamir-hardening.md):** Completely mitigates context-manipulation attacks by hashing the entire message envelope and routing suite *before* generating the Post-Quantum digital signature.
-- **Crypto-Agility:** Adheres strictly to SOLID principles. The underlying KEM, DSA, AEAD, and XOF implementations are fully decoupled via interfaces, allowing instant swapping of primitives.
-- **ASCII Armor Encoding:** Wraps raw JSON and binary ciphertexts into clean, easily transmittable Base64 ASCII blocks, preventing data corruption across standard text channels.
+* **Hybrid Cryptography:** Natively supports composite algorithms like **X-Wing** (X25519 + ML-KEM-768) and **EdDilithium** (Ed25519/Ed448 + Dilithium) to ensure security even if one cryptographic assumption fails.
+* **Perfect Forward Secrecy (PFS):** Implements a continuous, one-way Symmetric Key Ratchet driven by Extendable-Output Functions (XOFs) with strict cryptographic domain separation (`PQPG-v1-KDF-Chain-`). Every packet derives a unique ephemeral key, ensuring compromised future states cannot decrypt past messages.
+* **[Fiat-Shamir Hardening](https://github.com/gh4rib/pqpg-cloudflare-circl/blob/main/fiat-shamir-hardening.md):** Completely mitigates context-manipulation attacks by hashing the entire message envelope, timestamp, and routing suite (`PQPG-v1-FiatShamir-`) *before* generating the Post-Quantum digital signature.
+* **Asynchronous Replay Mitigation:** Specifically designed for store-and-forward (email-style) architectures. Binds a Unix timestamp into the encrypted state and utilizes the unique cryptographic signature as a one-time transaction token, blocking duplicated packets via local state-deduplication checks.
+* **Crypto-Agility:** Adheres strictly to SOLID principles. The underlying KEM, DSA, AEAD, and XOF implementations are fully decoupled via interfaces, allowing instant swapping of primitives.
+* **ASCII Armor Encoding:** Wraps raw JSON and binary ciphertexts into clean, easily transmittable Base64 ASCII blocks, preventing data corruption across standard text channels.
 
 ---
 
@@ -27,7 +28,7 @@ By utilizing Cloudflare's `circl` library, PQPG implements the latest FIPS 203, 
 
 ## Architecture Layout
 
-The codebase is structured to isolate cryptographic mathematics from network framing and identity management.
+The codebase is structured to isolate cryptographic mathematics from network framing, anti-replay state validation, and identity management.
 
 ```text
 pqc-messenger/
@@ -42,12 +43,13 @@ pqc-messenger/
 │   │   ├── dsa_adapters.go         # CIRCL Signature implementations
 │   │   ├── sym_adapters.go         # Block & Lightweight ciphers (Ascon)
 │   │   ├── hash_adapters.go        # Keccak, SHA-3, and XOF engines
-│   │   └── ratchet.go              # PFS unidirectional KDF chain
+│   │   └── ratchet.go              # PFS unidirectional KDF chain (Domain Separated)
 │   ├── identity/
 │   │   └── keyring.go              # PKI management and disk I/O
 │   └── packet/
 │       ├── armor.go                # Base64 ASCII encoding
-│       └── envelope.go             # Encrypt-then-Sign protocol logic
+│       ├── envelope.go             # Encrypt-then-Sign protocol logic with Timestamping
+│       └── replay.go               # Local signature-caching deduplication system
 ├── go.mod
 └── go.sum
 
@@ -59,27 +61,28 @@ pqc-messenger/
 
 ### Prerequisites
 
-- **Go 1.25.10** or higher.
-- An active internet connection to fetch the Cloudflare CIRCL library.
+* **Go 1.25.10** or higher.
+* An active internet connection to fetch the Cloudflare CIRCL library.
 
 ### Step-by-Step Build
 
 1. **Clone the repository:**
+
 ```bash
 git clone https://github.com/gh4rib/pqpg-cloudflare-circl.git
 cd pqpg-cloudflare-circl
 
 ```
 
-
 2. **Download dependencies:**
+
 ```bash
 go mod tidy
 
 ```
 
-
 3. **Compile the binary:**
+
 ```bash
 go build -o pqpg ./cmd/messenger
 
@@ -112,6 +115,7 @@ To securely transmit a file to an associate:
 * **Inputs:** 1. The path to your private folder (e.g., `./keys_alice/private`).
 2. The path to the recipient's public folder (e.g., `./keys_bob/public`).
 3. The path to the target file (e.g., `payload.txt`).
+* **Behind the Scenes:** The engine dynamically binds the instantaneous Unix execution timestamp straight into the packet layout before mapping signatures.
 * **Output:** An encrypted, cryptographically signed, ASCII-armored file named `outbox_msg.asc`.
 
 ### 4. Decrypt & Verify a File (Receive)
@@ -125,9 +129,11 @@ To open an encrypted envelope sent to you:
 3. The path to the ASCII armored file (e.g., `outbox_msg.asc`).
 
 
-* **Output:** The engine mathematically verifies the signature and MAC tag. If successful, it writes the original data to a timestamped file (e.g., `decrypted_msg_20260531_150405.txt`).
+* **Validation Flow:** 1. The system decodes the armor and evaluates the message's signature against a local ledger (`pqpg_seen_messages.json`). If the token signature is found, execution halts instantly to abort a replay attack.
+2. If clean, the engine mathematically enforces context integrity verification and executes post-quantum decapsulation.
+* **Output:** If verification is successful, it writes the original data to a timestamped file (e.g., `decrypted_msg_20260531_150405.txt`).
 
---
+---
 
 ## Acknowledgements & Upstream Projects
 
@@ -136,6 +142,8 @@ The core cryptographic mathematics of PQPG are powered by **CIRCL (Cloudflare In
 
 We extend our profound gratitude to Cloudflare, the internal security engineering teams, and the global open-source contributors who maintain the CIRCL repository. Additionally, we acknowledge the academic researchers and cryptographers who dedicated years to designing and proving the underlying lattice-based and symmetric algorithms that make post-quantum security a reality.
 
+---
+
 ## License & Third-Party Code
 
 **CIRCL License**
@@ -143,7 +151,7 @@ This software relies on the Cloudflare CIRCL library which released under BSD-3 
 
 Faz-Hernandez, A. and Kwiatkowski, K. (2019). Introducing CIRCL:
 An Advanced Cryptographic Library. Cloudflare. Available at
-https://github.com/cloudflare/circl. v1.6.3 Accessed May, 2026.
+[https://github.com/cloudflare/circl](https://github.com/cloudflare/circl). v1.6.3 Accessed May, 2026.
 
 > Copyright (c) 2019, Cloudflare Inc.
 > All rights reserved.
