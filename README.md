@@ -126,3 +126,27 @@ To open an encrypted envelope sent to you:
 
 
 * **Output:** The engine mathematically verifies the signature and MAC tag. If successful, it writes the original data to a timestamped file (e.g., `decrypted_msg_20260531_150405.txt`).
+
+--
+
+## Acknowledgements & Upstream Projects
+
+**Cloudflare CIRCL**
+The core cryptographic mathematics of PQPG are powered by **CIRCL (Cloudflare Interoperable, Reusable Cryptographic Library)**. CIRCL is an advanced open-source cryptographic engine written in pure Go, designed to bring state-of-the-art, experimental, and post-quantum cryptographic primitives to modern applications. It provides the highly optimized, memory-safe implementations of the NIST FIPS 203, 204, and 205 standards (ML-KEM, ML-DSA, SLH-DSA), as well as the composite hybrid architecture (X-Wing, EdDilithium) utilized in this engine.
+
+We extend our profound gratitude to Cloudflare, the internal security engineering teams, and the global open-source contributors who maintain the CIRCL repository. Additionally, we acknowledge the academic researchers and cryptographers who dedicated years to designing and proving the underlying lattice-based and symmetric algorithms that make post-quantum security a reality.
+
+## License & Third-Party Code
+
+**CIRCL License**
+This software relies on the Cloudflare CIRCL library.
+
+> Copyright (c) 2019, Cloudflare Inc.
+> All rights reserved.
+> Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+> 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+> 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+> 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+> 
+> 
+> *THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*
