@@ -17,7 +17,7 @@ func main() {
 
 	for {
 		fmt.Println("\n=====================================================================")
-		fmt.Println("             PQC-MESSENGER: POST-QUANTUM CRYPTO ENGINE               ")
+		fmt.Println("             PQPG: POST-QUANTUM PRIVACY GUARD ENGINE                 ")
 		fmt.Println("=====================================================================")
 		fmt.Println(" 1) Generate New Identity (PKI Setup)")
 		fmt.Println(" 2) View Local Keyrings")
@@ -39,7 +39,7 @@ func main() {
 		case "4":
 			handleReceive(reader)
 		case "5":
-			fmt.Println("[*] Exiting PQC-Messenger. Stay secure.")
+			fmt.Println("[*] Exiting PQPG. Stay secure.")
 			return
 		default:
 			fmt.Println("[-] Invalid option. Please select 1-5.")
@@ -52,12 +52,22 @@ func main() {
 // ---------------------------------------------------------------------
 
 func handleGenerateIdentity(reader *bufio.Reader) {
-	fmt.Print("\nEnter a name for this identity (e.g., 'alice'): ")
+	fmt.Print("\nEnter Real Name (e.g., Alice Vance): ")
 	name := readInput(reader)
 	if name == "" {
 		fmt.Println("[-] Name cannot be empty. Aborting.")
 		return
 	}
+
+	fmt.Print("Enter E-mail Address (e.g., alice@example.com): ")
+	email := readInput(reader)
+	if email == "" || !strings.Contains(email, "@") {
+		fmt.Println("[-] Invalid or missing email address. Aborting.")
+		return
+	}
+
+	fmt.Print("Enter Comment/Description (Optional, e.g., Work Key): ")
+	comment := readInput(reader)
 
 	fmt.Println("\nSelect a Security Profile Configuration:")
 	fmt.Println(" 1) NIST Level 3 (ML-KEM-768 + ML-DSA-65 + AES-256-GCM + SHAKE256)")
@@ -84,15 +94,25 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	}
 
 	fmt.Println("[*] Generating keys. This may take a moment for large parameter sets...")
-	err := identity.GenerateIdentity(name, kem, dsa, aead, xof, ".")
+	err := identity.GenerateIdentity(name, email, comment, kem, dsa, aead, xof, ".")
 	if err != nil {
 		fmt.Printf("[-] Failed to generate identity: %v\n", err)
 		return
 	}
 
-	fmt.Printf("[+] Identity '%s' established successfully.\n", name)
-	fmt.Printf("    -> Private keys: ./keys_%s/private (KEEP SECRET)\n", name)
-	fmt.Printf("    -> Public keys:  ./keys_%s/public  (SHARE THIS)\n", name)
+	// Mirror the filesystem sanitization to construct the correct path
+	safeName := strings.ReplaceAll(name, " ", "_")
+
+	// Load the newly generated profile to display the computed fingerprint
+	pubDir := filepath.Join(".", fmt.Sprintf("keys_%s", safeName), "public")
+	prof, err := identity.LoadProfile(pubDir)
+	if err == nil {
+		fmt.Println("\n[+] Identity Successfully Created!")
+		fmt.Printf("    User ID:     %s\n", prof.UserID())
+		fmt.Printf("    Fingerprint: %s\n", prof.Fingerprint)
+		fmt.Printf("    -> Private keys: ./keys_%s/private (KEEP SECRET)\n", safeName)
+		fmt.Printf("    -> Public keys:  ./keys_%s/public  (SHARE THIS)\n", safeName)
+	}
 }
 
 func handleViewKeyrings() {
@@ -111,17 +131,19 @@ func handleViewKeyrings() {
 			prof, err := identity.LoadProfile(pubDir)
 			if err == nil {
 				found = true
-				fmt.Printf("\n--- Identity: %s ---\n", prof.Name)
-				fmt.Printf("  KEM Suite:  %s\n", prof.KEMSuite)
-				fmt.Printf("  DSA Suite:  %s\n", prof.DSASuite)
-				fmt.Printf("  AEAD Suite: %s\n", prof.AEADSuite)
-				fmt.Printf("  XOF Suite:  %s\n", prof.XOFSuite)
-				fmt.Printf("  Path:       ./%s\n", f.Name())
+				fmt.Println(strings.Repeat("-", 75))
+				fmt.Printf("User ID:     %s\n", prof.UserID())
+				fmt.Printf("Fingerprint: %s\n", prof.Fingerprint)
+				fmt.Printf("Algorithms:  KEM: %s | DSA: %s\n", prof.KEMSuite, prof.DSASuite)
+				fmt.Printf("             AEAD: %s | XOF: %s\n", prof.AEADSuite, prof.XOFSuite)
+				fmt.Printf("Local Path:  ./%s\n", f.Name())
 			}
 		}
 	}
 
-	if !found {
+	if found {
+		fmt.Println(strings.Repeat("-", 75))
+	} else {
 		fmt.Println("[-] No local keyrings found in the current directory.")
 	}
 }
