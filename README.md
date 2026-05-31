@@ -139,7 +139,11 @@ We extend our profound gratitude to Cloudflare, the internal security engineerin
 ## License & Third-Party Code
 
 **CIRCL License**
-This software relies on the Cloudflare CIRCL library.
+This software relies on the Cloudflare CIRCL library which released under BSD-3 Clause License.
+
+Faz-Hernandez, A. and Kwiatkowski, K. (2019). Introducing CIRCL:
+An Advanced Cryptographic Library. Cloudflare. Available at
+https://github.com/cloudflare/circl. v1.6.3 Accessed May, 2026.
 
 > Copyright (c) 2019, Cloudflare Inc.
 > All rights reserved.
