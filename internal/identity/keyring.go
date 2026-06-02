@@ -73,14 +73,23 @@ func (p *Profile) CalculateFingerprint() (string, error) {
 }
 
 // GenerateIdentity creates a new post-quantum identity, signs the context, and saves it to disk.
-func GenerateIdentity(name, email, comment, kemName, dsaName, aeadName, xofName, outDir string) error {
+func GenerateIdentity(name, email, comment, kemSuite, dsaSuite, aeadSuite, xofSuite, outDir, passphrase string) error {
 	registry := crypto.NewRegistry()
-	if !registry.ValidateSuite(kemName, dsaName, aeadName, xofName) {
+	
+	// FIXED: Variable names matched to function signature
+	if !registry.ValidateSuite(kemSuite, dsaSuite, aeadSuite, xofSuite) {
 		return fmt.Errorf("invalid or incompatible cryptographic suite parameters")
 	}
 
-	kem, _ := registry.GetKEM(kemName)
-	dsa, _ := registry.GetDSA(dsaName)
+	kem, err := registry.GetKEM(kemSuite)
+	if err != nil {
+		return fmt.Errorf("failed to initialize KEM: %w", err)
+	}
+	
+	dsa, err := registry.GetDSA(dsaSuite)
+	if err != nil {
+		return fmt.Errorf("failed to initialize DSA: %w", err)
+	}
 
 	kemPub, kemPriv, err := kem.GenerateKeyPair()
 	if err != nil {
@@ -96,10 +105,10 @@ func GenerateIdentity(name, email, comment, kemName, dsaName, aeadName, xofName,
 		Name:      name,
 		Email:     email,
 		Comment:   comment,
-		KEMSuite:  kemName,
-		DSASuite:  dsaName,
-		AEADSuite: aeadName,
-		XOFSuite:  xofName,
+		KEMSuite:  kemSuite,
+		DSASuite:  dsaSuite,
+		AEADSuite: aeadSuite,
+		XOFSuite:  xofSuite,
 		DSAPubKey: dsaPub,
 		KEMPubKey: kemPub,
 	}
@@ -111,11 +120,11 @@ func GenerateIdentity(name, email, comment, kemName, dsaName, aeadName, xofName,
 	}
 	profile.Fingerprint = fp
 
-	return saveToDisk(outDir, name, profile, kemPriv, dsaPriv)
+	// FIXED: Passed 'profile' instead of undefined 'prof'
+	return saveToDisk(outDir, name, profile, kemPriv, dsaPriv, passphrase)
 }
 
-func saveToDisk(dir, name string, prof Profile, kemPriv, dsaPriv []byte) error {
-	// Sanitize the name for clean filesystem paths
+func saveToDisk(dir, name string, prof Profile, kemPriv, dsaPriv []byte, passphrase string) error {
 	safeName := strings.ReplaceAll(name, " ", "_")
 
 	privDir := filepath.Join(dir, fmt.Sprintf("keys_%s", safeName), "private")
@@ -128,38 +137,44 @@ func saveToDisk(dir, name string, prof Profile, kemPriv, dsaPriv []byte) error {
 		return err
 	}
 
+	// Save Public Assets standardly
 	profBytes, _ := json.MarshalIndent(prof, "", "  ")
 	_ = os.WriteFile(filepath.Join(pubDir, "profile.json"), profBytes, 0644)
 	_ = os.WriteFile(filepath.Join(privDir, "profile.json"), profBytes, 0600)
 
-	_ = os.WriteFile(filepath.Join(privDir, "kem.priv"), kemPriv, 0600)
-	_ = os.WriteFile(filepath.Join(privDir, "dsa.priv"), dsaPriv, 0600)
+	// ENCRYPT PRIVATE KEYS CONSOLIDATED
+	armoredPrivateBlock, err := EncryptAndArmorKeys(kemPriv, dsaPriv, passphrase)
+	if err != nil {
+		return fmt.Errorf("failed protecting subkeys: %v", err)
+	}
 
-	return nil
+	// Write single protected key file
+	err = os.WriteFile(filepath.Join(privDir, "private_key.asc"), []byte(armoredPrivateBlock), 0600)
+	return err
 }
 
 // LoadKeyring reads the private identity from disk.
-func LoadKeyring(privDir string) (*Keyring, error) {
-	profBytes, err := os.ReadFile(filepath.Join(privDir, "profile.json"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read profile: %w", err)
-	}
-	var prof Profile
-	if err := json.Unmarshal(profBytes, &prof); err != nil {
-		return nil, err
-	}
-
-	kemPriv, err := os.ReadFile(filepath.Join(privDir, "kem.priv"))
-	if err != nil {
-		return nil, err
-	}
-	dsaPriv, err := os.ReadFile(filepath.Join(privDir, "dsa.priv"))
+func LoadKeyring(privDir string, passphrase string) (*Keyring, error) {
+	prof, err := LoadProfile(privDir)
 	if err != nil {
 		return nil, err
 	}
 
+	// Load armored asset
+	armoredBytes, err := os.ReadFile(filepath.Join(privDir, "private_key.asc"))
+	if err != nil {
+		return nil, fmt.Errorf("missing secure private key bundle file: %v", err)
+	}
+
+	// Extract keys securely through memory layer
+	kemPriv, dsaPriv, err := DecryptArmoredKeys(string(armoredBytes), passphrase)
+	if err != nil {
+		return nil, err
+	}
+
+	// FIXED: Mapped to correct struct fields KEMPrivKey and DSAPrivKey
 	return &Keyring{
-		Profile:    prof,
+		Profile:    *prof,
 		KEMPrivKey: kemPriv,
 		DSAPrivKey: dsaPriv,
 	}, nil
