@@ -2,6 +2,7 @@ package packet
 
 import (
 	"bufio"
+	"compress/gzip"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/gh4rib/pqpg-cloudflare-circl/internal/crypto"
 	"github.com/gh4rib/pqpg-cloudflare-circl/internal/identity"
+	"github.com/klauspost/compress/zstd"
 )
 
 const (
@@ -25,15 +27,16 @@ const (
 )
 
 type EnvelopeMetadata struct {
-	MessageID  []byte `json:"message_id"`
-	SenderName string `json:"sender_name"`
-	Timestamp  int64  `json:"timestamp"`
-	KEMSuite   string `json:"kem_suite"`
-	DSASuite   string `json:"dsa_suite"`
-	AEADSuite  string `json:"aead_suite"`
-	XOFSuite   string `json:"xof_suite"`
-	KEMEncap   []byte `json:"kem_encap"`
-	Nonce      []byte `json:"nonce"`
+	MessageID   []byte `json:"message_id"`
+	SenderName  string `json:"sender_name"`
+	Timestamp   int64  `json:"timestamp"`
+	KEMSuite    string `json:"kem_suite"`
+	DSASuite    string `json:"dsa_suite"`
+	AEADSuite   string `json:"aead_suite"`
+	XOFSuite    string `json:"xof_suite"`
+	Compression string `json:"compression"` // Tracks compression state natively
+	KEMEncap    []byte `json:"kem_encap"`
+	Nonce       []byte `json:"nonce"`
 }
 
 func buildChunkNonce(baseNonce []byte, counter uint64) []byte {
@@ -49,8 +52,8 @@ func buildChunkNonce(baseNonce []byte, counter uint64) []byte {
 	return nonce
 }
 
-// StreamSeal encrypts in 64KB chunks and applies Uniform Boundary Padding to the final block.
-func StreamSeal(in io.Reader, out io.Writer, senderKr *identity.Keyring, receiverProf *identity.Profile) error {
+// StreamSeal compresses, pads, and encrypts a file stream.
+func StreamSeal(in io.Reader, out io.Writer, senderKr *identity.Keyring, receiverProf *identity.Profile, compression string) error {
 	registry := crypto.NewRegistry()
 
 	msgID := make([]byte, 32)
@@ -76,15 +79,16 @@ func StreamSeal(in io.Reader, out io.Writer, senderKr *identity.Keyring, receive
 	_, _ = io.ReadFull(rand.Reader, baseNonce)
 
 	metadata := EnvelopeMetadata{
-		MessageID:  msgID,
-		SenderName: senderKr.Profile.Name,
-		Timestamp:  time.Now().Unix(),
-		KEMSuite:   receiverProf.KEMSuite,
-		DSASuite:   senderKr.Profile.DSASuite,
-		AEADSuite:  receiverProf.AEADSuite,
-		XOFSuite:   receiverProf.XOFSuite,
-		KEMEncap:   ctKEM,
-		Nonce:      baseNonce,
+		MessageID:   msgID,
+		SenderName:  senderKr.Profile.Name,
+		Timestamp:   time.Now().Unix(),
+		KEMSuite:    receiverProf.KEMSuite,
+		DSASuite:    senderKr.Profile.DSASuite,
+		AEADSuite:   receiverProf.AEADSuite,
+		XOFSuite:    receiverProf.XOFSuite,
+		Compression: compression,
+		KEMEncap:    ctKEM,
+		Nonce:       baseNonce,
 	}
 
 	metadataBytes, _ := json.Marshal(metadata)
@@ -94,25 +98,45 @@ func StreamSeal(in io.Reader, out io.Writer, senderKr *identity.Keyring, receive
 	fiatShamirXOF.Write([]byte("PQPG-v1-FiatShamir-"))
 	fiatShamirXOF.Write(metadataBytes)
 
+	// --- COMPRESSION PIPELINE ---
+	compReader, compWriter := io.Pipe()
+
+	go func() {
+		var err error
+		defer func() { compWriter.CloseWithError(err) }()
+
+		switch compression {
+		case "Zstd":
+			zw, _ := zstd.NewWriter(compWriter)
+			_, err = io.Copy(zw, in)
+			zw.Close()
+		case "Gzip":
+			gw := gzip.NewWriter(compWriter)
+			_, err = io.Copy(gw, in)
+			gw.Close()
+		default:
+			_, err = io.Copy(compWriter, in)
+		}
+	}()
+	// ----------------------------
+
 	buf := make([]byte, ChunkSize)
 	var chunkIndex uint64 = 0
 
 	for {
-		// Use io.ReadFull to ensure we only get short reads at the very end of the file
-		n, readErr := io.ReadFull(in, buf)
+		// Read from the COMPRESSED stream
+		n, readErr := io.ReadFull(compReader, buf)
 		
 		if n > 0 {
 			if readErr == io.EOF || readErr == io.ErrUnexpectedEOF {
-				// FINAL PARTIAL CHUNK: Apply 4KB Boundary Padding
+				// FINAL CHUNK: Apply 4KB Padding to obscure compressed size
 				padLen := 4096 - (n % 4096)
 				if padLen < 2 {
-					padLen += 4096 // Ensure we have enough space to inject the 2-byte length marker
+					padLen += 4096 
 				}
 				
 				padBuf := make([]byte, padLen)
 				_, _ = io.ReadFull(rand.Reader, padBuf)
-				
-				// Inject the length of the padding as a LittleEndian uint16 at the very end
 				binary.LittleEndian.PutUint16(padBuf[padLen-2:], uint16(padLen))
 				
 				finalPlaintext := append(buf[:n], padBuf...)
@@ -125,7 +149,6 @@ func StreamSeal(in io.Reader, out io.Writer, senderKr *identity.Keyring, receive
 				chunkIndex++
 				break
 			} else {
-				// FULL CHUNK: Encrypt and continue
 				chunkNonce := buildChunkNonce(baseNonce, chunkIndex)
 				ciphertext, _ := aead.Seal(msgKey, chunkNonce, buf[:n], nil)
 				
@@ -136,7 +159,7 @@ func StreamSeal(in io.Reader, out io.Writer, senderKr *identity.Keyring, receive
 		}
 
 		if readErr == io.EOF {
-			// EMPTY FILE OR EXACT MULTIPLE: Create a dedicated 4KB padding chunk
+			// EMPTY COMPRESSED OUTPUT: Generate solid 4KB block
 			padLen := 4096
 			padBuf := make([]byte, padLen)
 			_, _ = io.ReadFull(rand.Reader, padBuf)
@@ -152,7 +175,7 @@ func StreamSeal(in io.Reader, out io.Writer, senderKr *identity.Keyring, receive
 		}
 		
 		if readErr != nil && readErr != io.ErrUnexpectedEOF {
-			return fmt.Errorf("file read interrupted: %v", readErr)
+			return fmt.Errorf("file compression stream interrupted: %v", readErr)
 		}
 	}
 
@@ -165,7 +188,7 @@ func StreamSeal(in io.Reader, out io.Writer, senderKr *identity.Keyring, receive
 	return nil
 }
 
-// StreamOpen decrypts chunks sequentially and strips the boundary padding from the final chunk.
+// StreamOpen decrypts chunks sequentially, strips padding, and decompresses.
 func StreamOpen(in io.Reader, out io.Writer, receiverKr *identity.Keyring, senderProf *identity.Profile) error {
 	registry := crypto.NewRegistry()
 	reader := bufio.NewReader(in)
@@ -207,58 +230,96 @@ func StreamOpen(in io.Reader, out io.Writer, receiverKr *identity.Keyring, sende
 	fiatShamirXOF.Write([]byte("PQPG-v1-FiatShamir-"))
 	fiatShamirXOF.Write(headerBytes)
 
-	var chunkIndex uint64 = 0
-	var prevPlaintext []byte // 1-Chunk delay buffer to isolate the final padded chunk
+	// --- DECOMPRESSION PIPELINE ---
+	decReader, decWriter := io.Pipe()
 
-	for {
-		line, err := reader.ReadString('\n')
-		line = strings.TrimSpace(line)
+	go func() {
+		var loopErr error
+		defer func() { decWriter.CloseWithError(loopErr) }()
 
-		if line == SignatureBoundary {
-			// Loop has hit the signature. prevPlaintext holds the final chunk.
-			// Extract length and strip the padding.
-			if len(prevPlaintext) < 2 {
-				return errors.New("corrupt padding structure: chunk too small")
-			}
-			padLen := binary.LittleEndian.Uint16(prevPlaintext[len(prevPlaintext)-2:])
-			if int(padLen) > len(prevPlaintext) {
-				return errors.New("CRITICAL: padding length metric exceeds chunk boundaries")
+		var chunkIndex uint64 = 0
+		var prevPlaintext []byte 
+
+		for {
+			line, err := reader.ReadString('\n')
+			line = strings.TrimSpace(line)
+
+			if line == SignatureBoundary {
+				if len(prevPlaintext) < 2 {
+					loopErr = errors.New("corrupt padding structure: chunk too small")
+					return
+				}
+				padLen := binary.LittleEndian.Uint16(prevPlaintext[len(prevPlaintext)-2:])
+				if int(padLen) > len(prevPlaintext) {
+					loopErr = errors.New("CRITICAL: padding length metric exceeds chunk boundaries")
+					return
+				}
+				
+				// Write stripped block to the decompressor pipe
+				decWriter.Write(prevPlaintext[:len(prevPlaintext)-int(padLen)])
+				break
 			}
 			
-			// Write the final sanitized block to disk
-			out.Write(prevPlaintext[:len(prevPlaintext)-int(padLen)])
-			break
+			if line == "" && err == nil { continue }
+			if err != nil {
+				loopErr = errors.New("unexpected end of file before signature block")
+				return
+			}
+
+			ciphertext, err := base64.StdEncoding.DecodeString(line)
+			if err != nil {
+				loopErr = errors.New("corrupt ciphertext base64 chunk")
+				return
+			}
+
+			fiatShamirXOF.Write(ciphertext)
+
+			chunkNonce := buildChunkNonce(metadata.Nonce, chunkIndex)
+			plaintext, err := aead.Open(msgKey, chunkNonce, ciphertext, nil)
+			if err != nil {
+				loopErr = fmt.Errorf("CRITICAL: Ciphertext chunk %d corrupted or tampered", chunkIndex)
+				return
+			}
+
+			if prevPlaintext != nil {
+				decWriter.Write(prevPlaintext) 
+			}
+			
+			prevPlaintext = plaintext 
+			chunkIndex++
 		}
-		
-		if line == "" && err == nil { continue }
-		if err != nil { return errors.New("unexpected end of file before signature block") }
 
-		ciphertext, err := base64.StdEncoding.DecodeString(line)
-		if err != nil { return errors.New("corrupt ciphertext base64 chunk") }
+		sigB64, _ := reader.ReadString('\n')
+		signature, _ := base64.StdEncoding.DecodeString(strings.TrimSpace(sigB64))
 
-		fiatShamirXOF.Write(ciphertext)
-
-		chunkNonce := buildChunkNonce(metadata.Nonce, chunkIndex)
-		plaintext, err := aead.Open(msgKey, chunkNonce, ciphertext, nil)
-		if err != nil {
-			return fmt.Errorf("CRITICAL: Ciphertext chunk %d corrupted or tampered", chunkIndex)
+		digest := fiatShamirXOF.Derive(nil, 64)
+		dsa, _ := registry.GetDSA(metadata.DSASuite)
+		if !dsa.Verify(senderProf.DSAPubKey, digest, signature) {
+			loopErr = errors.New("CRITICAL ALARM: FIAT-SHAMIR METADATA BINDING TAMPERED. PAYLOAD REJECTED")
+			return
 		}
+	}()
+	// ------------------------------
 
-		if prevPlaintext != nil {
-			out.Write(prevPlaintext) // Flush the previous safe chunk
-		}
-		
-		prevPlaintext = plaintext // Hold current chunk until we verify it isn't the final padded one
-		chunkIndex++
+	// Stream verified, decompressed data to the hard drive
+	var errOut error
+	switch metadata.Compression {
+	case "Zstd":
+		zr, zerr := zstd.NewReader(decReader)
+		if zerr != nil { return zerr }
+		defer zr.Close()
+		_, errOut = io.Copy(out, zr)
+	case "Gzip":
+		gr, gerr := gzip.NewReader(decReader)
+		if gerr != nil { return gerr }
+		defer gr.Close()
+		_, errOut = io.Copy(out, gr)
+	default:
+		_, errOut = io.Copy(out, decReader)
 	}
 
-	sigB64, _ := reader.ReadString('\n')
-	signature, _ := base64.StdEncoding.DecodeString(strings.TrimSpace(sigB64))
-
-	digest := fiatShamirXOF.Derive(nil, 64)
-	dsa, _ := registry.GetDSA(metadata.DSASuite)
-	if !dsa.Verify(senderProf.DSAPubKey, digest, signature) {
-		return errors.New("CRITICAL ALARM: FIAT-SHAMIR METADATA BINDING TAMPERED. PAYLOAD REJECTED")
+	if errOut != nil {
+		return fmt.Errorf("decryption/decompression interrupted: %w", errOut)
 	}
 
 	return nil

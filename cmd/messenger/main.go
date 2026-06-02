@@ -325,6 +325,22 @@ func handleSend(reader *bufio.Reader) {
 	}
 	defer inFile.Close()
 
+
+	// --- NEW PROMPT ---
+	fmt.Println("\nSelect Data Compression Profile:")
+	fmt.Println(" 1) None (Best for already compressed files like .mp4, .zip, .kdbx)")
+	fmt.Println(" 2) Zstandard (Extremely Fast, High Compression)")
+	fmt.Println(" 3) GZIP (Legacy Standard)")
+	fmt.Print("Choice [1-3]: ")
+	compChoice := readInput(reader)
+
+	var compression string
+	switch compChoice {
+	case "2": compression = "Zstd"
+	case "3": compression = "Gzip"
+	default:  compression = "None"
+	}
+
 	receiverProf, err := identity.LoadProfile(pubPath)
 	if err != nil {
 		fmt.Printf("[-] Failed to load recipient public keys: %v\n", err)
@@ -340,7 +356,8 @@ func handleSend(reader *bufio.Reader) {
 	defer outFile.Close()
 
 	fmt.Println("[*] Sealing Post-Quantum Streaming Envelope...")
-	err = packet.StreamSeal(inFile, outFile, senderKr, receiverProf)
+	// Pass 'compression' here:
+	err = packet.StreamSeal(inFile, outFile, senderKr, receiverProf, compression)
 	if err != nil {
 		fmt.Printf("[-] Encryption interrupted: %v\n", err)
 		return
@@ -425,6 +442,21 @@ func handleVaultLock(reader *bufio.Reader) {
 	}
 	defer inFile.Close()
 
+	// --- NEW PROMPT ---
+	fmt.Println("\nSelect Data Compression Profile:")
+	fmt.Println(" 1) None (Best for already compressed files like .mp4, .zip, .kdbx)")
+	fmt.Println(" 2) Zstandard (Extremely Fast, High Compression)")
+	fmt.Println(" 3) GZIP (Legacy Standard)")
+	fmt.Print("Choice [1-3]: ")
+	compChoice := readInput(reader)
+
+	var compression string
+	switch compChoice {
+	case "2": compression = "Zstd"
+	case "3": compression = "Gzip"
+	default:  compression = "None"
+	}
+
 	outboxName := filePath + ".pq_vault"
 	outFile, err := os.Create(outboxName)
 	if err != nil {
@@ -434,8 +466,9 @@ func handleVaultLock(reader *bufio.Reader) {
 	defer outFile.Close()
 
 	fmt.Println("[*] Sealing Database into Personal Post-Quantum Vault via Chunking...")
-
-	err = packet.StreamSeal(inFile, outFile, myKr, &myKr.Profile)
+	
+	// Pass 'compression' here:
+	err = packet.StreamSeal(inFile, outFile, myKr, &myKr.Profile, compression)	
 	if err != nil {
 		fmt.Printf("[-] Vault encryption failed: %v\n", err)
 		return
