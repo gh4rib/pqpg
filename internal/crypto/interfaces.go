@@ -37,9 +37,9 @@ type AEAD interface {
 	Open(key, nonce, ciphertext, additionalData []byte) ([]byte, error)
 }
 
-// XOF defines a unified interface for both traditional Hashes and Extendable-Output Functions.
 type XOF interface {
 	Name() string
-	Derive(input []byte, outputSize int) []byte
+	Write(p []byte) (n int, err error)           // ADD THIS: Allows continuous chunk streaming
+	Derive(input []byte, outputSize int) []byte  
 	NewWriter() io.Writer
 }

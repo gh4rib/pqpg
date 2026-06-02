@@ -194,6 +194,7 @@ func handleViewKeyrings() {
 	}
 }
 
+
 func handleSend(reader *bufio.Reader) {
 	fmt.Print("\nEnter path to YOUR private folder (e.g., ./keys_alice/private): ")
 	privPath := readInput(reader)
@@ -210,14 +211,15 @@ func handleSend(reader *bufio.Reader) {
 	fmt.Print("Enter path to RECIPIENT'S public folder (e.g., ./keys_bob/public): ")
 	pubPath := readInput(reader)
 
-	fmt.Print("Enter path to the file you want to send (e.g., secret.txt): ")
+	fmt.Print("Enter path to the file you want to send: ")
 	filePath := readInput(reader)
 
-	msgBytes, err := os.ReadFile(filePath)
+	inFile, err := os.Open(filePath)
 	if err != nil {
-		fmt.Printf("[-] Failed to read message file: %v\n", err)
+		fmt.Printf("[-] Failed to open target file for streaming: %v\n", err)
 		return
 	}
+	defer inFile.Close()
 
 	receiverProf, err := identity.LoadProfile(pubPath)
 	if err != nil {
@@ -225,27 +227,22 @@ func handleSend(reader *bufio.Reader) {
 		return
 	}
 
-	fmt.Println("[*] Sealing Post-Quantum envelope...")
-	env, err := packet.Seal(msgBytes, senderKr, receiverProf)
-	if err != nil {
-		fmt.Printf("[-] Encryption failed: %v\n", err)
-		return
-	}
-
-	armored, err := packet.EncodeArmor(env)
-	if err != nil {
-		fmt.Printf("[-] ASCII Armoring failed: %v\n", err)
-		return
-	}
-
 	outboxName := "outbox_msg.asc"
-	err = os.WriteFile(outboxName, []byte(armored), 0644)
+	outFile, err := os.Create(outboxName)
 	if err != nil {
-		fmt.Printf("[-] Failed to save packet: %v\n", err)
+		fmt.Printf("[-] Failed to create outbox stream: %v\n", err)
+		return
+	}
+	defer outFile.Close()
+
+	fmt.Println("[*] Sealing Post-Quantum Streaming Envelope...")
+	err = packet.StreamSeal(inFile, outFile, senderKr, receiverProf)
+	if err != nil {
+		fmt.Printf("[-] Encryption interrupted: %v\n", err)
 		return
 	}
 
-	fmt.Printf("\n[+] SUCCESS! File encrypted, signed, and saved to '%s'\n", outboxName)
+	fmt.Printf("\n[+] SUCCESS! File encrypted in chunks, signed, and saved to '%s'\n", outboxName)
 }
 
 func handleReceive(reader *bufio.Reader) {
@@ -273,57 +270,33 @@ func handleReceive(reader *bufio.Reader) {
 		return
 	}
 
-	ascBytes, err := os.ReadFile(ascPath)
+	inFile, err := os.Open(ascPath)
 	if err != nil {
-		fmt.Printf("[-] Failed to read packet file: %v\n", err)
+		fmt.Printf("[-] Failed to open incoming stream: %v\n", err)
 		return
 	}
+	defer inFile.Close()
 
-	env, err := packet.DecodeArmor(string(ascBytes))
+	outFilename := fmt.Sprintf("decrypted_msg_%s.txt", time.Now().Format("20060102_150405"))
+	outFile, err := os.Create(outFilename)
 	if err != nil {
-		fmt.Printf("[-] Failed to decode ASCII Armor: %v\n", err)
+		fmt.Printf("[-] Failed to allocate output file: %v\n", err)
 		return
 	}
-
-	if err := packet.CheckAndCacheMessage(env); err != nil {
-		fmt.Printf("[-] %v\n", err)
-		return
-	}
-
-	fmt.Printf("\n[*] Opening Envelope...\n    Sender Claim: %s\n    Timestamp: %v\n    KEM: %s\n",
-		env.SenderName, time.Unix(env.Timestamp, 0).Format(time.RFC1123), env.KEMSuite)
-
-	recovered, err := packet.Open(env, receiverKr, senderProf)
+	
+	fmt.Println("[*] Streaming decryption engine engaged...")
+	err = packet.StreamOpen(inFile, outFile, receiverKr, senderProf)
+	outFile.Close() // Close immediately to allow deletion on failure
+	
 	if err != nil {
-		fmt.Printf("[-] Verification or Decryption failed: %v\n", err)
-		return
-	}
-
-	timestamp := time.Now().Format("20060102_150405")
-	outFilename := fmt.Sprintf("decrypted_msg_%s.txt", timestamp)
-
-	err = os.WriteFile(outFilename, recovered, 0644)
-	if err != nil {
-		fmt.Printf("[-] Failed to save decrypted file: %v\n", err)
+		os.Remove(outFilename) // Purge the corrupt file instantly to protect the user
+		fmt.Printf("[-] CRITICAL: Verification or Decryption failed. File Purged. Reason: %v\n", err)
 		return
 	}
 
 	fmt.Printf("[+] VERIFICATION SUCCESSFUL. Mathematical identity proven.\n")
 	fmt.Printf("[+] Decrypted file saved to: %s\n", outFilename)
 }
-
-// ---------------------------------------------------------------------
-// Utility
-// ---------------------------------------------------------------------
-
-func readInput(reader *bufio.Reader) string {
-	input, _ := reader.ReadString('\n')
-	return strings.TrimSpace(input)
-}
-
-// ---------------------------------------------------------------------
-// Vault Handlers (Self-Encryption)
-// ---------------------------------------------------------------------
 
 func handleVaultLock(reader *bufio.Reader) {
 	fmt.Print("\nEnter path to YOUR private folder (e.g., ./keys_alice/private): ")
@@ -338,38 +311,33 @@ func handleVaultLock(reader *bufio.Reader) {
 		return
 	}
 
-	fmt.Print("Enter path to the file you want to lock (e.g., passwords.kdbx): ")
+	fmt.Print("Enter path to the file you want to lock (e.g., massive_database.kdbx): ")
 	filePath := readInput(reader)
 
-	msgBytes, err := os.ReadFile(filePath)
+	inFile, err := os.Open(filePath)
 	if err != nil {
-		fmt.Printf("[-] Failed to read database file: %v\n", err)
+		fmt.Printf("[-] Failed to open database stream: %v\n", err)
 		return
 	}
+	defer inFile.Close()
 
-	fmt.Println("[*] Sealing Database into Personal Post-Quantum Vault...")
+	outboxName := filePath + ".pq_vault"
+	outFile, err := os.Create(outboxName)
+	if err != nil {
+		fmt.Printf("[-] Failed to allocate vault file: %v\n", err)
+		return
+	}
+	defer outFile.Close()
 
-	env, err := packet.Seal(msgBytes, myKr, &myKr.Profile)
+	fmt.Println("[*] Sealing Database into Personal Post-Quantum Vault via Chunking...")
+
+	err = packet.StreamSeal(inFile, outFile, myKr, &myKr.Profile)
 	if err != nil {
 		fmt.Printf("[-] Vault encryption failed: %v\n", err)
 		return
 	}
 
-	armored, err := packet.EncodeArmor(env)
-	if err != nil {
-		fmt.Printf("[-] Vault ASCII Armoring failed: %v\n", err)
-		return
-	}
-
-	outboxName := filePath + ".pq_vault"
-	err = os.WriteFile(outboxName, []byte(armored), 0644)
-	if err != nil {
-		fmt.Printf("[-] Failed to save Vault packet: %v\n", err)
-		return
-	}
-
-	fmt.Printf("\n[+] VAULT LOCKED! Encrypted, signed, and saved to '%s'\n", outboxName)
-	fmt.Println("    (Recommendation: You can safely delete the original plaintext file now).")
+	fmt.Printf("\n[+] VAULT LOCKED! Stream encrypted, signed, and saved to '%s'\n", outboxName)
 }
 
 func handleVaultUnlock(reader *bufio.Reader) {
@@ -385,43 +353,38 @@ func handleVaultUnlock(reader *bufio.Reader) {
 		return
 	}
 
-	fmt.Print("Enter path to the locked vault file (e.g., passwords.kdbx.pq_vault): ")
+	fmt.Print("Enter path to the locked vault file (e.g., massive_database.kdbx.pq_vault): ")
 	ascPath := readInput(reader)
 
-	ascBytes, err := os.ReadFile(ascPath)
+	inFile, err := os.Open(ascPath)
 	if err != nil {
-		fmt.Printf("[-] Failed to read Vault file: %v\n", err)
+		fmt.Printf("[-] Failed to open Vault stream: %v\n", err)
 		return
 	}
-
-	env, err := packet.DecodeArmor(string(ascBytes))
-	if err != nil {
-		fmt.Printf("[-] Failed to decode Vault Armor: %v\n", err)
-		return
-	}
-
-	if err := packet.CheckAndCacheMessage(env); err != nil {
-		fmt.Printf("[-] %v\n", err)
-		return
-	}
-
-	fmt.Printf("\n[*] Unlocking Vault...\n    Owner: %s\n    Locked On: %v\n",
-		env.SenderName, time.Unix(env.Timestamp, 0).Format(time.RFC1123))
-
-	recovered, err := packet.Open(env, myKr, &myKr.Profile)
-	if err != nil {
-		fmt.Printf("[-] Vault Verification or Decryption failed: %v\n", err)
-		return
-	}
+	defer inFile.Close()
 
 	outFilename := strings.TrimSuffix(ascPath, ".pq_vault")
-
-	err = os.WriteFile(outFilename, recovered, 0644)
+	outFile, err := os.Create(outFilename)
 	if err != nil {
-		fmt.Printf("[-] Failed to save decrypted file: %v\n", err)
+		fmt.Printf("[-] Failed to allocate restored file: %v\n", err)
+		return
+	}
+
+	fmt.Println("[*] Streaming decryption engine engaged. Unlocking vault...")
+	err = packet.StreamOpen(inFile, outFile, myKr, &myKr.Profile)
+	outFile.Close()
+
+	if err != nil {
+		os.Remove(outFilename)
+		fmt.Printf("[-] CRITICAL: Vault Authentication failed. File Purged. Reason: %v\n", err)
 		return
 	}
 
 	fmt.Printf("[+] VAULT OPENED. Mathematical identity proven.\n")
 	fmt.Printf("[+] Decrypted database restored to: %s\n", outFilename)
+}
+
+func readInput(reader *bufio.Reader) string {
+	input, _ := reader.ReadString('\n')
+	return strings.TrimSpace(input)
 }
