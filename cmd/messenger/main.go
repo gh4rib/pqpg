@@ -16,16 +16,18 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
-		fmt.Println("\n=====================================================================")
+        fmt.Println("=====================================================================")
 		fmt.Println("             PQPG: POST-QUANTUM PRIVACY GUARD ENGINE                 ")
 		fmt.Println("=====================================================================")
 		fmt.Println(" 1) Generate New Identity (PKI Setup)")
 		fmt.Println(" 2) View Local Keyrings")
 		fmt.Println(" 3) Encrypt & Sign a File (Send)")
 		fmt.Println(" 4) Decrypt & Verify a File (Receive)")
-		fmt.Println(" 5) Exit")
+		fmt.Println(" 5) Lock File into Personal Vault")   // NEW
+		fmt.Println(" 6) Unlock Personal Vault")           // NEW
+		fmt.Println(" 7) Exit")
 		fmt.Println("=====================================================================")
-		fmt.Print("Select an option [1-5]: ")
+		fmt.Print("Select an option [1-7]: ")
 
 		option := readInput(reader)
 
@@ -39,6 +41,10 @@ func main() {
 		case "4":
 			handleReceive(reader)
 		case "5":
+			handleVaultLock(reader)
+		case "6":
+			handleVaultUnlock(reader)
+		case "7":
 			fmt.Println("[*] Exiting PQPG. Stay secure.")
 			return
 		default:
@@ -269,4 +275,109 @@ func handleReceive(reader *bufio.Reader) {
 func readInput(reader *bufio.Reader) string {
 	input, _ := reader.ReadString('\n')
 	return strings.TrimSpace(input)
+}
+
+// ---------------------------------------------------------------------
+// Vault Handlers (Self-Encryption)
+// ---------------------------------------------------------------------
+
+func handleVaultLock(reader *bufio.Reader) {
+	fmt.Print("\nEnter path to YOUR private folder (e.g., ./keys_Alice/private): ")
+	privPath := readInput(reader)
+
+	fmt.Print("Enter path to the file you want to lock (e.g., passwords.kdbx): ")
+	filePath := readInput(reader)
+
+	msgBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Printf("[-] Failed to read database file: %v\n", err)
+		return
+	}
+
+	// Load your own keys
+	myKr, err := identity.LoadKeyring(privPath)
+	if err != nil {
+		fmt.Printf("[-] Failed to load private keys: %v\n", err)
+		return
+	}
+
+	fmt.Println("[*] Sealing Database into Personal Post-Quantum Vault...")
+	
+	// We act as BOTH the Sender and the Receiver
+	env, err := packet.Seal(msgBytes, myKr, &myKr.Profile)
+	if err != nil {
+		fmt.Printf("[-] Vault encryption failed: %v\n", err)
+		return
+	}
+
+	armored, err := packet.EncodeArmor(env)
+	if err != nil {
+		fmt.Printf("[-] Vault ASCII Armoring failed: %v\n", err)
+		return
+	}
+
+	outboxName := filePath + ".pq_vault"
+	err = os.WriteFile(outboxName, []byte(armored), 0644)
+	if err != nil {
+		fmt.Printf("[-] Failed to save Vault packet: %v\n", err)
+		return
+	}
+
+	fmt.Printf("\n[+] VAULT LOCKED! Encrypted, signed, and saved to '%s'\n", outboxName)
+	fmt.Println("    (Recommendation: You can safely delete the original plaintext file now).")
+}
+
+func handleVaultUnlock(reader *bufio.Reader) {
+	fmt.Print("\nEnter path to YOUR private folder (e.g., ./keys_Alice/private): ")
+	privPath := readInput(reader)
+
+	fmt.Print("Enter path to the locked vault file (e.g., passwords.kdbx.pq_vault): ")
+	ascPath := readInput(reader)
+
+	myKr, err := identity.LoadKeyring(privPath)
+	if err != nil {
+		fmt.Printf("[-] Failed to load private keys: %v\n", err)
+		return
+	}
+
+	ascBytes, err := os.ReadFile(ascPath)
+	if err != nil {
+		fmt.Printf("[-] Failed to read Vault file: %v\n", err)
+		return
+	}
+
+	env, err := packet.DecodeArmor(string(ascBytes))
+	if err != nil {
+		fmt.Printf("[-] Failed to decode Vault Armor: %v\n", err)
+		return
+	}
+
+	// ---- ANTI-REPLAY DEFENSE FOR VAULT ----
+	if err := packet.CheckAndCacheMessage(env); err != nil {
+		fmt.Printf("[-] %v\n", err)
+		return
+	}
+	// ---------------------------------------
+
+	fmt.Printf("\n[*] Unlocking Vault...\n    Owner: %s\n    Locked On: %v\n",
+		env.SenderName, time.Unix(env.Timestamp, 0).Format(time.RFC1123))
+
+	// We verify against our own profile
+	recovered, err := packet.Open(env, myKr, &myKr.Profile)
+	if err != nil {
+		fmt.Printf("[-] Vault Verification or Decryption failed: %v\n", err)
+		return
+	}
+
+	// Strip the ".pq_vault" extension to restore original filename
+	outFilename := strings.TrimSuffix(ascPath, ".pq_vault")
+
+	err = os.WriteFile(outFilename, recovered, 0644)
+	if err != nil {
+		fmt.Printf("[-] Failed to save decrypted file: %v\n", err)
+		return
+	}
+
+	fmt.Printf("[+] VAULT OPENED. Mathematical identity proven.\n")
+	fmt.Printf("[+] Decrypted database restored to: %s\n", outFilename)
 }
