@@ -6,7 +6,47 @@ import (
 
 	"github.com/cloudflare/circl/xof/k12"
 	"golang.org/x/crypto/sha3"
+	"crypto/sha512"
 )
+
+// ---------------------------------------------------------
+// Standard SHA-2 Adapter (Fixed Hash)
+// ---------------------------------------------------------
+type sha2Adapter struct {
+	hasher hash.Hash
+}
+
+func (s *sha2Adapter) Name() string { return "SHA-512" }
+
+func (s *sha2Adapter) init() {
+	if s.hasher == nil {
+		s.hasher = sha512.New()
+	}
+}
+
+func (s *sha2Adapter) Write(p []byte) (n int, err error) {
+	s.init()
+	return s.hasher.Write(p)
+}
+
+func (s *sha2Adapter) Derive(input []byte, outputSize int) []byte {
+	s.init()
+	if len(input) > 0 {
+		s.hasher.Write(input)
+	}
+	
+	h := s.hasher.Sum(nil)
+	out := make([]byte, outputSize)
+	copy(out, h) 
+	
+	s.hasher = nil 
+	return out
+}
+
+func (s *sha2Adapter) NewWriter() io.Writer {
+	s.init()
+	return s.hasher
+}
 
 // ---------------------------------------------------------
 // SHAKE Adapter (XOF)

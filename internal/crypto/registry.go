@@ -20,6 +20,8 @@ func (r *Registry) GetXOF(name string) (XOF, error) {
 		return &sha3StandardAdapter{variant: "SHA3-384"}, nil
 	case "SHA3-512":
 		return &sha3StandardAdapter{variant: "SHA3-512"}, nil
+	case "SHA-512": // NEW SHA-2 ADDITION
+		return &sha2Adapter{}, nil
 	case "KangarooTwelve":
 		return &k12Adapter{}, nil
 	default:
