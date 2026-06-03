@@ -130,27 +130,6 @@ Select **Option 9** to hash a massive file (e.g., an OS `.iso`) natively from th
 
 ---
 
-## 🚀 Feature Trajectory & Roadmap
-
-Future architectural sprints will focus on network evasion and advanced abstract algebra:
-
-### Phase 1: Operational Security & Network Evasion
-
-* **Steganographic Carrier Routing (DPI Evasion):** Routing encrypted `.asc` envelopes seamlessly into the Least Significant Bits (LSB) of uncompressed `.wav` audio files or `.png` images to bypass corporate Deep Packet Inspection firewalls.
-* **The Hidden Volume (Plausible Deniability):** Enabling multi-passphrase architectures where secondary "hidden" vaults are written into the indistinguishable random noise padding of a primary decoy vault.
-
-### Phase 2: Asynchronous Infrastructure
-
-* **Post-Quantum Double Ratchet:** Upgrading the static KEM pipeline to generate ephemeral keys per message, creating true Self-Healing Cryptography that continuously rotates secrets to lock out passive session hijackers.
-* **Decentralized Web Key Directory (WKD):** Implementing HTTPS automated discovery protocols to fetch and verify remote public keys via email addresses (e.g., `.well-known/pqpg/user`).
-
-### Phase 3: Zero-Knowledge Transients
-
-* **OPAQUE PAKE (Zero-Knowledge Cloud Sync):** Authenticating vault synchronization state against untrusted cloud servers using Oblivious Pseudorandom Functions (RFC-9497 DLEQ), authenticating users without transmitting password hashes.
-* **Linkable Ring Signatures (LSAG):** Implementing spontaneous anonymous group signatures over Ed25519 to allow users to prove board-level or clearance-level authorization without revealing their explicit identity to the network.
-
----
-
 ## Acknowledgements & Upstream Projects
 
 **Cloudflare CIRCL**
