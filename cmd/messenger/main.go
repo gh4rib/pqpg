@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
 
 	"github.com/gh4rib/pqpg-cloudflare-circl/internal/identity"
 	"github.com/gh4rib/pqpg-cloudflare-circl/internal/packet"
@@ -20,19 +20,25 @@ func main() {
 		fmt.Println("=====================================================================")
 		fmt.Println("             PQPG: POST-QUANTUM PRIVACY GUARD ENGINE                 ")
 		fmt.Println("=====================================================================")
-		fmt.Println(" 1) Generate New Identity (PKI Setup)")
-		fmt.Println(" 2) View Local Keyrings")
-		fmt.Println(" 3) Encrypt & Sign a File (Send)")
-		fmt.Println(" 4) Decrypt & Verify a File (Receive)")
-		fmt.Println(" 5) Lock File into Personal Vault")
-		fmt.Println(" 6) Unlock Personal Vault")
-		fmt.Println(" 7) Sign Massive File (Cleartext Detached)")
-		fmt.Println(" 8) Verify Massive File (Cleartext Detached)")
-		fmt.Println(" 9) Create & Lock Shamir Shared Vault (Shared File) - Work but NOT Practical you expect!")
-		fmt.Println(" 10) Unlock Shamir Shared Vault")
-		fmt.Println(" 11) Exit")
+		fmt.Println(" --- IDENTITY & KEY MANAGEMENT ---")
+		fmt.Println("  1) Generate New Identity (PKI Setup)")
+		fmt.Println("  2) View Local Keyrings")
+		fmt.Println("\n --- NETWORK TRANSFERS (SEALED SENDER) ---")
+		fmt.Println("  3) Encrypt & Sign a File (Send)")
+		fmt.Println("  4) Decrypt & Verify a File (Receive)")
+		fmt.Println("\n --- LOCAL VAULT STORAGE ---")
+		fmt.Println("  5) Lock File into Personal Vault")
+		fmt.Println("  6) Unlock Personal Vault")
+		fmt.Println("\n --- DISTRIBUTED THRESHOLD STORAGE ---")
+		fmt.Println("  7) Lock M-of-N Shared Vault (Feldman VSS)")
+		fmt.Println("  8) Unlock M-of-N Shared Vault")
+		fmt.Println("\n --- CLEAR-TEXT SIGNATURES ---")
+		fmt.Println("  9) Sign Massive File (Detached)")
+		fmt.Println(" 10) Verify Massive File (Detached)")
+		fmt.Println("\n --- SYSTEM ---")
+		fmt.Println(" 99) Exit")
 		fmt.Println("=====================================================================")
-		fmt.Print("Select an option [1-11]: ")
+		fmt.Print("Select an option: ")
 
 		option := readInput(reader)
 
@@ -50,18 +56,18 @@ func main() {
 		case "6":
 			handleVaultUnlock(reader)
 		case "7":
-			handleDetachedSign(reader)
-		case "8":
-			handleDetachedVerify(reader)
-		case "9":
 			handleSharedVaultLock(reader)
-		case "10":
+		case "8":
 			handleSharedVaultUnlock(reader)
-		case "11":
+		case "9":
+			handleDetachedSign(reader)
+		case "10":
+			handleDetachedVerify(reader)
+		case "99":
 			fmt.Println("[*] Exiting PQPG. Stay secure.")
 			return
 		default:
-			fmt.Println("[-] Invalid option. Please select 1-5.")
+			fmt.Println("[-] Invalid option. Please select a valid number from the menu.")
 		}
 	}
 }
@@ -103,10 +109,14 @@ func handleDetachedSign(reader *bufio.Reader) {
 
 	var hashAlgo string
 	switch hashChoice {
-	case "1": hashAlgo = "SHA-512"
-	case "2": hashAlgo = "SHA3-512"
-	case "3": hashAlgo = "SHAKE256"
-	case "4": hashAlgo = "KangarooTwelve"
+	case "1":
+		hashAlgo = "SHA-512"
+	case "2":
+		hashAlgo = "SHA3-512"
+	case "3":
+		hashAlgo = "SHAKE256"
+	case "4":
+		hashAlgo = "KangarooTwelve"
 	default:
 		fmt.Println("[-] Invalid selection. Aborting.")
 		return
@@ -172,11 +182,15 @@ func handleDetachedVerify(reader *bufio.Reader) {
 func handleGenerateIdentity(reader *bufio.Reader) {
 	fmt.Print("\nEnter Real Name (e.g., Alice Vance): ")
 	name := readInput(reader)
-	if name == "" { return }
+	if name == "" {
+		return
+	}
 
 	fmt.Print("Enter E-mail Address (e.g., alice@example.com): ")
 	email := readInput(reader)
-	if email == "" || !strings.Contains(email, "@") { return }
+	if email == "" || !strings.Contains(email, "@") {
+		return
+	}
 
 	fmt.Print("Enter Comment/Description (Optional): ")
 	comment := readInput(reader)
@@ -332,8 +346,6 @@ func handleSend(reader *bufio.Reader) {
 	}
 	defer inFile.Close()
 
-
-	// --- NEW PROMPT ---
 	fmt.Println("\nSelect Data Compression Profile:")
 	fmt.Println(" 1) None (Best for already compressed files like .mp4, .zip, .kdbx)")
 	fmt.Println(" 2) Zstandard (Extremely Fast, High Compression)")
@@ -343,9 +355,12 @@ func handleSend(reader *bufio.Reader) {
 
 	var compression string
 	switch compChoice {
-	case "2": compression = "Zstd"
-	case "3": compression = "Gzip"
-	default:  compression = "None"
+	case "2":
+		compression = "Zstd"
+	case "3":
+		compression = "Gzip"
+	default:
+		compression = "None"
 	}
 
 	receiverProf, err := identity.LoadProfile(pubPath)
@@ -363,7 +378,6 @@ func handleSend(reader *bufio.Reader) {
 	defer outFile.Close()
 
 	fmt.Println("[*] Sealing Post-Quantum Streaming Envelope...")
-	// Pass 'compression' here:
 	err = packet.StreamSeal(inFile, outFile, senderKr, receiverProf, compression)
 	if err != nil {
 		fmt.Printf("[-] Encryption interrupted: %v\n", err)
@@ -411,13 +425,13 @@ func handleReceive(reader *bufio.Reader) {
 		fmt.Printf("[-] Failed to allocate output file: %v\n", err)
 		return
 	}
-	
+
 	fmt.Println("[*] Streaming decryption engine engaged...")
 	err = packet.StreamOpen(inFile, outFile, receiverKr, senderProf)
-	outFile.Close() // Close immediately to allow deletion on failure
-	
+	outFile.Close() 
+
 	if err != nil {
-		os.Remove(outFilename) // Purge the corrupt file instantly to protect the user
+		os.Remove(outFilename) 
 		fmt.Printf("[-] CRITICAL: Verification or Decryption failed. File Purged. Reason: %v\n", err)
 		return
 	}
@@ -449,7 +463,6 @@ func handleVaultLock(reader *bufio.Reader) {
 	}
 	defer inFile.Close()
 
-	// --- NEW PROMPT ---
 	fmt.Println("\nSelect Data Compression Profile:")
 	fmt.Println(" 1) None (Best for already compressed files like .mp4, .zip, .kdbx)")
 	fmt.Println(" 2) Zstandard (Extremely Fast, High Compression)")
@@ -459,9 +472,12 @@ func handleVaultLock(reader *bufio.Reader) {
 
 	var compression string
 	switch compChoice {
-	case "2": compression = "Zstd"
-	case "3": compression = "Gzip"
-	default:  compression = "None"
+	case "2":
+		compression = "Zstd"
+	case "3":
+		compression = "Gzip"
+	default:
+		compression = "None"
 	}
 
 	outboxName := filePath + ".pq_vault"
@@ -473,9 +489,8 @@ func handleVaultLock(reader *bufio.Reader) {
 	defer outFile.Close()
 
 	fmt.Println("[*] Sealing Database into Personal Post-Quantum Vault via Chunking...")
-	
-	// Pass 'compression' here:
-	err = packet.StreamSeal(inFile, outFile, myKr, &myKr.Profile, compression)	
+
+	err = packet.StreamSeal(inFile, outFile, myKr, &myKr.Profile, compression)
 	if err != nil {
 		fmt.Printf("[-] Vault encryption failed: %v\n", err)
 		return
@@ -561,9 +576,12 @@ func handleSharedVaultLock(reader *bufio.Reader) {
 
 	var aeadSuite string
 	switch cipherChoice {
-	case "2": aeadSuite = "ChaCha20-Poly1305"
-	case "3": aeadSuite = "Ascon-128a"
-	default:  aeadSuite = "AES-256-GCM"
+	case "2":
+		aeadSuite = "ChaCha20-Poly1305"
+	case "3":
+		aeadSuite = "Ascon-128a"
+	default:
+		aeadSuite = "AES-256-GCM"
 	}
 
 	fmt.Println("\nSelect Data Compression Profile:")
@@ -575,9 +593,12 @@ func handleSharedVaultLock(reader *bufio.Reader) {
 
 	var compression string
 	switch compChoice {
-	case "2": compression = "Zstd"
-	case "3": compression = "Gzip"
-	default:  compression = "None"
+	case "2":
+		compression = "Zstd"
+	case "3":
+		compression = "Gzip"
+	default:
+		compression = "None"
 	}
 
 	outboxName := filePath + ".pq_shared"
@@ -588,7 +609,7 @@ func handleSharedVaultLock(reader *bufio.Reader) {
 	}
 	defer outFile.Close()
 
-	fmt.Println("[*] Generating Master AES Key and executing Shamir's Polynomial Mathematics...")
+	fmt.Println("[*] Generating Master Key and plotting Feldman VSS Polynomial on Ed25519...")
 	shares, err := packet.SharedVaultLock(inFile, outFile, aeadSuite, compression, parts, threshold)
 	if err != nil {
 		fmt.Printf("[-] Shared Vault encryption failed: %v\n", err)
@@ -616,7 +637,7 @@ func handleSharedVaultUnlock(reader *bufio.Reader) {
 	}
 	defer inFile.Close()
 
-	fmt.Print("How many Shamir shares are you providing? (Enter the threshold number): ")
+	fmt.Print("How many VSS shares are you providing? (Enter the threshold number): ")
 	mStr := readInput(reader)
 	count, _ := strconv.Atoi(mStr)
 
@@ -639,7 +660,7 @@ func handleSharedVaultUnlock(reader *bufio.Reader) {
 		return
 	}
 
-	fmt.Println("[*] Reconstructing Master Key via Lagrange Interpolation...")
+	fmt.Println("[*] Verifying shares against Public Commitments & Reconstructing Master Key...")
 	err = packet.SharedVaultUnlock(inFile, outFile, providedShares)
 	outFile.Close()
 
@@ -649,7 +670,7 @@ func handleSharedVaultUnlock(reader *bufio.Reader) {
 		return
 	}
 
-	fmt.Printf("\n[+] VAULT OPENED. Master Key flawlessly reconstructed.\n")
+	fmt.Printf("\n[+] VAULT OPENED. Mathematical authenticity verified and Key flawlessly reconstructed.\n")
 	fmt.Printf("[+] Decrypted database restored to: %s\n", outFilename)
 }
 

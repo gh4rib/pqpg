@@ -10,55 +10,87 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/gh4rib/pqpg-cloudflare-circl/internal/crypto"
-	"github.com/hashicorp/vault/shamir"
 	"github.com/klauspost/compress/zstd"
+
+	"go.dedis.ch/kyber/v4"
+	"go.dedis.ch/kyber/v4/group/edwards25519"
 )
 
 const (
-	SharedHeaderBoundary = "-----BEGIN SHARED VAULT HEADER-----"
+	SharedHeaderBoundary  = "-----BEGIN SHARED VAULT HEADER-----"
 	SharedPayloadBoundary = "-----BEGIN SHARED VAULT PAYLOAD-----"
-	SharedEndBoundary = "-----END SHARED VAULT-----"
+	SharedEndBoundary     = "-----END SHARED VAULT-----"
 )
 
 type SharedMetadata struct {
-	AEADSuite   string `json:"aead_suite"`
-	Compression string `json:"compression"`
-	Nonce       []byte `json:"nonce"`
+	AEADSuite      string   `json:"aead_suite"`
+	Compression    string   `json:"compression"`
+	Nonce          []byte   `json:"nonce"`
+	VSSCommitments []string `json:"vss_commitments"` // The Public ECC Points locking the polynomial
 }
 
-// SharedVaultLock generates a random Master Key, encrypts the file, and returns the Shamir shares.
+// SharedVaultLock generates an Ed25519-based VSS polynomial, encrypts, and returns verified shares.
 func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, compression string, parts, threshold int) ([]string, error) {
 	if threshold > parts || threshold < 2 {
-		return nil, errors.New("invalid Shamir parameters: threshold must be <= parts and >= 2")
+		return nil, errors.New("invalid VSS parameters")
 	}
 
 	registry := crypto.NewRegistry()
 	aead, err := registry.GetAEAD(aeadSuite)
 	if err != nil { return nil, err }
 
-	// 1. Generate Master Encryption Key & Split it
-	msgKey := make([]byte, aead.KeySize())
-	_, _ = io.ReadFull(rand.Reader, msgKey)
+	// Initialize the v4 Edwards25519 Suite
+	suite := edwards25519.NewBlakeSHA256Ed25519()
 
-	rawShares, err := shamir.Split(msgKey, parts, threshold)
-	if err != nil { return nil, fmt.Errorf("failed to generate polynomial shares: %w", err) }
+	// 1. Generate Random Polynomial Coefficients over Ed25519 Scalar Field
+	coeffs := make([]kyber.Scalar, threshold)
+	for i := range coeffs {
+		coeffs[i] = suite.Scalar().Pick(suite.RandomStream())
+	}
+	secretScalar := coeffs[0] // The Constant Term is our Vault Secret
 
-	var encodedShares []string
-	for _, share := range rawShares {
-		encodedShares = append(encodedShares, base64.StdEncoding.EncodeToString(share))
+	// 2. Derive the 32-byte AES/ChaCha Master Key using SHAKE256 KDF
+	secBytes, _ := secretScalar.MarshalBinary()
+	xof, _ := registry.GetXOF("SHAKE256")
+	msgKey := xof.Derive(secBytes, aead.KeySize())
+
+	// 3. Generate Feldman Public Commitments (C_j = a_j * G)
+	var commitments []string
+	for _, c := range coeffs {
+		pt := suite.Point().Mul(c, nil)
+		ptBytes, _ := pt.MarshalBinary()
+		commitments = append(commitments, base64.StdEncoding.EncodeToString(ptBytes))
 	}
 
-	// 2. Initialize Streaming Metadata
+	// 4. Evaluate Polynomial to Generate Shares (y = f(x))
+	var encodedShares []string
+	for i := 1; i <= parts; i++ {
+		x := suite.Scalar().SetInt64(int64(i))
+		y := suite.Scalar().Zero()
+
+		// Horner's Method for Polynomial Evaluation
+		for j := threshold - 1; j >= 0; j-- {
+			y.Mul(y, x).Add(y, coeffs[j])
+		}
+
+		yBytes, _ := y.MarshalBinary()
+		// Encode as "X-Coordinate.Y-Coordinate(Base64)"
+		encodedShares = append(encodedShares, fmt.Sprintf("%d.%s", i, base64.StdEncoding.EncodeToString(yBytes)))
+	}
+
+	// 5. Initialize Streaming Metadata
 	baseNonce := make([]byte, aead.NonceSize())
 	_, _ = io.ReadFull(rand.Reader, baseNonce)
 
 	metadata := SharedMetadata{
-		AEADSuite:   aeadSuite,
-		Compression: compression,
-		Nonce:       baseNonce,
+		AEADSuite:      aeadSuite,
+		Compression:    compression,
+		Nonce:          baseNonce,
+		VSSCommitments: commitments, // Bind the public math to the header
 	}
 
 	metaBytes, _ := json.Marshal(metadata)
@@ -83,7 +115,7 @@ func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, compression string,
 		}
 	}()
 
-	// 3. Encrypt & Pad the Stream
+	// 6. Encrypt & Pad the Stream
 	buf := make([]byte, ChunkSize)
 	var chunkIndex uint64 = 0
 
@@ -127,26 +159,15 @@ func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, compression string,
 	}
 
 	fmt.Fprintf(out, "%s\n", SharedEndBoundary)
-	return encodedShares, nil // Returns the keys to be distributed to the board members
+	return encodedShares, nil 
 }
 
-// SharedVaultUnlock mathematically reconstructs the Master Key from the provided M-shares.
+// SharedVaultUnlock verifies shares against VSS commitments and reconstructs via Lagrange interpolation.
 func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) error {
 	registry := crypto.NewRegistry()
 	reader := bufio.NewReader(in)
 
-	// 1. Reconstruct Master Secret using Lagrange Interpolation
-	var rawShares [][]byte
-	for _, b64Share := range encodedShares {
-		raw, err := base64.StdEncoding.DecodeString(b64Share)
-		if err != nil { return errors.New("corrupt share encoding") }
-		rawShares = append(rawShares, raw)
-	}
-
-	msgKey, err := shamir.Combine(rawShares)
-	if err != nil { return fmt.Errorf("CRITICAL: Failed to reconstruct Master Key. Shares invalid or insufficient: %w", err) }
-
-	// 2. Parse Header
+	// 1. Parse the Header to extract the VSS Commitments
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil { return errors.New("invalid file: missing outer boundary") }
@@ -161,10 +182,83 @@ func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) erro
 	payloadBoundary, _ := reader.ReadString('\n')
 	if strings.TrimSpace(payloadBoundary) != SharedPayloadBoundary { return errors.New("invalid file structure") }
 
-	aead, _ := registry.GetAEAD(metadata.AEADSuite)
+	// 2. FELDMAN VERIFICATION
+	suite := edwards25519.NewBlakeSHA256Ed25519()
+	
+	var C []kyber.Point
+	for _, cB64 := range metadata.VSSCommitments {
+		b, _ := base64.StdEncoding.DecodeString(cB64)
+		pt := suite.Point()
+		_ = pt.UnmarshalBinary(b)
+		C = append(C, pt)
+	}
 
-	// --- DECOMPRESSION PIPELINE ---
+	var xs []kyber.Scalar
+	var ys []kyber.Scalar
+
+	for i, shareStr := range encodedShares {
+		parts := strings.Split(shareStr, ".")
+		if len(parts) != 2 { return fmt.Errorf("CRITICAL: Share %d is structurally invalid", i+1) }
+		
+		xInt, _ := strconv.ParseInt(parts[0], 10, 64)
+		x := suite.Scalar().SetInt64(xInt)
+		
+		yBytes, _ := base64.StdEncoding.DecodeString(parts[1])
+		y := suite.Scalar()
+		_ = y.UnmarshalBinary(yBytes)
+
+		// VSS Mathematical Proof: y * G == sum(x^j * C_j)
+		lhs := suite.Point().Mul(y, nil)
+		rhs := suite.Point().Null()
+		xPow := suite.Scalar().SetInt64(1)
+		
+		for j := 0; j < len(C); j++ {
+			term := suite.Point().Mul(xPow, C[j])
+			rhs.Add(rhs, term)
+			xPow.Mul(xPow, x)
+		}
+
+		if !lhs.Equal(rhs) {
+			return fmt.Errorf("FELDMAN VSS ALARM: Share %d is a forgery! It does not belong to this vault", i+1)
+		}
+
+		xs = append(xs, x)
+		ys = append(ys, y)
+	}
+
+	// 3. LAGRANGE INTERPOLATION (Reconstruct the Constant Term)
+	secret := suite.Scalar().Zero()
+	for i := 0; i < len(xs); i++ {
+		num := suite.Scalar().SetInt64(1)
+		den := suite.Scalar().SetInt64(1)
+
+		for j := 0; j < len(xs); j++ {
+			if i == j { continue }
+			negXj := suite.Scalar().Neg(xs[j])
+			num.Mul(num, negXj)
+
+			diff := suite.Scalar().Sub(xs[i], xs[j])
+			den.Mul(den, diff)
+		}
+
+		li := suite.Scalar().Mul(num, suite.Scalar().Inv(den))
+		term := suite.Scalar().Mul(ys[i], li)
+		secret.Add(secret, term)
+	}
+
+	// 4. DECRYPTION PIPELINE (Initialize cipher first)
+	aead, err := registry.GetAEAD(metadata.AEADSuite)
+	if err != nil { 
+		return fmt.Errorf("failed to load cipher suite: %w", err) 
+	}
+
+	// Derive Master Key
+	secBytes, _ := secret.MarshalBinary()
+	xof, _ := registry.GetXOF("SHAKE256")
+	msgKey := xof.Derive(secBytes, aead.KeySize())
+
 	decReader, decWriter := io.Pipe()
+
 	go func() {
 		var loopErr error
 		defer func() { decWriter.CloseWithError(loopErr) }()
@@ -197,7 +291,6 @@ func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) erro
 		}
 	}()
 
-	// 3. Stream to Output
 	var errOut error
 	switch metadata.Compression {
 	case "Zstd":
