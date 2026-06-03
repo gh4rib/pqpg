@@ -142,8 +142,8 @@ func saveToDisk(dir, name string, prof Profile, kemPriv, dsaPriv []byte, passphr
 	_ = os.WriteFile(filepath.Join(pubDir, "profile.json"), profBytes, 0644)
 	_ = os.WriteFile(filepath.Join(privDir, "profile.json"), profBytes, 0600)
 
-	// ENCRYPT PRIVATE KEYS CONSOLIDATED
-	armoredPrivateBlock, err := EncryptAndArmorKeys(kemPriv, dsaPriv, passphrase)
+	// --- UPDATED: Pass the AEAD suite so the private key file uses the same cipher ---
+	armoredPrivateBlock, err := EncryptAndArmorKeys(kemPriv, dsaPriv, passphrase, prof.AEADSuite)
 	if err != nil {
 		return fmt.Errorf("failed protecting subkeys: %v", err)
 	}
