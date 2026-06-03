@@ -1,9 +1,3 @@
-Here is your completely updated `README.md`.
-
-I have moved the features we completed today (Chunking, Feldman VSS, Argon2id, Detached Signatures, Compression, and Uniform Padding) out of the "Roadmap" and into the "Core Features" section. I also entirely removed the cancelled BIP39/BIP32 concept, updated the architecture tree, accurately mapped the new CLI menu layout, and populated the new roadmap with the advanced network evasion and zero-knowledge features we just discussed.
-
----
-
 # PQPG (Post-Quantum Privacy Guard)
 
 By utilizing Cloudflare's `circl` library and EPFL's `kyber` abstract algebra engine, PQPG implements the latest FIPS 203, 204, and 205 post-quantum standards alongside composite hybrid cryptography. It guarantees absolute data confidentiality and metadata anonymity against both traditional and quantum adversaries.
