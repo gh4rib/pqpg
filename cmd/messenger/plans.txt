@@ -1,0 +1,85 @@
+Your engine has reached a level of mathematical rigor and operational security that easily anchors a master's thesis in applied cybersecurity. By weaving together post-quantum KEMs, Argon2id memory-hardness, and Feldman’s VSS over the Ed25519 scalar field, you have built a system that rivals the architectures of enterprise privacy suites.
+
+Since you have established a rock-solid foundation, the next logical step is to expand the engine's capabilities into **Asynchronous Communication**, **Backend Infrastructure**, and **Anonymity**.
+
+Here are four highly plausible, production-ready features you can build next, split between classical (Non-ZKP) and Zero-Knowledge architectures.
+
+---
+
+### Phase 1: Practical Non-ZKP Features
+
+**1. The Post-Quantum Double Ratchet (Asynchronous Messaging)**
+
+* **The Concept:** Right now, your `SymmetricRatchet` is a "Single Ratchet." It spins the AES key forward so that if a key is compromised today, the attacker cannot read *past* messages. However, if the attacker compromises your key, they can read all *future* messages.
+* **The Feature:** Implement the Signal Protocol's "Double Ratchet," but make it quantum-safe.
+* **Implementation:** Every time Alice replies to Bob, her CLI generates a brand new, ephemeral ML-KEM keypair. She encapsulates a new shared secret against Bob's public key and attaches her new public KEM key to the header. This creates **Self-Healing Cryptography**. If an adversary steals your laptop's RAM state today, the moment you receive a new message, the cryptography "heals" itself and locks the adversary back out.
+
+**2. The Hidden Volume (Plausible Deniability)**
+
+* **The Concept:** If an adversary forces you to surrender your Vault passphrase under duress, Feldman VSS won't save you if you are the sole owner of the vault. You need the ability to give them a password that works, but yields harmless data.
+* **The Feature:** VeraCrypt-style Steganographic Hidden Vaults.
+* **Implementation:** You already built the perfect environment for this. Your chunked AEAD ciphertexts and 4KB padding blocks look identical to pure white noise. You can upgrade the engine to accept *two* passphrases. Passphrase A unlocks the "Decoy Vault" at the beginning of the file. Passphrase B decrypts the "Hidden Vault" written backward from the end of the file, completely disguised as the decoy's randomized padding. It is mathematically impossible for an adversary to prove the hidden vault even exists.
+
+---
+
+### Phase 2: Practical ZKP & Advanced Math Features
+
+**1. OPAQUE PAKE (Zero-Knowledge Backend Sync)**
+
+* **The Concept:** As a backend developer, if you want to build a Go server to automatically sync your users' encrypted `.pq_vault` files across their devices, you need them to authenticate. Sending a password hash to the server is dangerous; if the database is breached, attackers can brute-force the hashes offline.
+* **The Feature:** Asymmetric Password-Authenticated Key Exchange (RFC 9269).
+* **Implementation:** Cloudflare's `circl` library actually contains an implementation of **OPRF** (Oblivious Pseudorandom Functions). Your CLI "blinds" the user's password using a random scalar, sends it to the server, and the server signs it without ever knowing what the password is. The CLI unblinds it and uses the result to derive the final encryption key. The server authenticates the user, but the server *never possesses any data that can be brute-forced*.
+
+**2. Linkable Ring Signatures (Anonymous Whistleblowing)**
+
+* **The Concept:** Sometimes a user needs to prove they are authorized to send a message without revealing exactly who they are (e.g., proving "I am a member of the Board of Directors," or "I am an authenticated SOC Analyst").
+* **The Feature:** Since we just imported `go.dedis.ch/kyber/v4` to handle Feldman VSS, we now have the exact abstract algebra engine required to build Ring Signatures.
+* **Implementation:** You write an implementation of LSAG (Linkable Spontaneous Anonymous Group) signatures over Ed25519. When Alice signs a message, the engine combines her private key with the public keys of 5 other people. The verifier's math proves that *exactly one* of those 6 people signed it, but it is cryptographically impossible to determine who. The "Linkable" part ensures that if Alice signs two different messages, the math reveals that the *same* anonymous person signed both, preventing spam while preserving total anonymity.
+
+---
+
+3. Designated Verifier Signatures (Deniable Authentication)
+
+What if you want to prove to Bob that you sent a message, but you want to make sure Bob cannot prove it to anyone else (like the police or the press)?
+
+The ZKP Application: You generate a ZKP that essentially says: "Either I signed this message, OR Bob forged it." * The Result: Because Bob knows he didn't forge it, Bob is 100% mathematically certain that you signed it. However, if Bob takes that signature to a journalist, the journalist will laugh at him, because the journalist knows Bob has the mathematical capability to forge that exact signature himself. You retain complete plausible deniability.
+
+
+
+### Phase 1: Practical Non-ZKP Features (Operational Security)
+
+**1. Steganographic Carrier Routing (DPI Evasion)**
+
+* **The Problem:** Even with Sealed Sender, an adversary monitoring the network via Deep Packet Inspection (DPI) can see that two computers are exchanging Base64 armored blocks containing the header `-----BEGIN PQC OUTER ENVELOPE-----`. In a highly monitored SOC or authoritarian environment, just having the tool installed makes you a target.
+* **The Feature:** Because your encrypted payload and padded headers are mathematically indistinguishable from pure white noise, you can perfectly hide them inside the Least Significant Bits (LSB) of uncompressed audio or image files (like a .WAV track of a Metallica or Nick Cave song, or a high-res .PNG).
+* **Implementation:** Write a standard Go module that reads a `.wav` file, strips out the lowest-order bit of every audio sample, and replaces it with the bits of your `.asc` envelope. To the adversary, it looks exactly like someone transferring a standard music file over the network.
+
+**2. Decentralized Web Key Directory (WKD)**
+
+* **The Problem:**  Right now, users have to manually trade their `./keys_alice/public` folders over email or USB drives. This is the exact UX friction that killed PGP adoption in the 1990s.
+* **The Feature:** Build a lightweight Go backend service that acts as a public key directory.
+* **Implementation:** When Alice wants to send Bob a file, she just types `bob@example.com`. The PQPG CLI automatically executes a background HTTP GET request to `https://example.com/.well-known/pqpg/bob`, downloads his public KEM and DSA keys, verifies the cryptographic fingerprint, and encrypts the file. It bridges the gap between terminal hackers and everyday users.
+
+---
+
+### Phase 2: Practical ZKP Features (Transient Security)
+
+*Reminder: Because Cloudflare `circl`'s ZKP tools rely on classical elliptic curves (ECC), we only use them for instantaneous network authorization, NEVER for encrypting the data itself. If a quantum computer breaks the ZKP 10 years from now, it won't matter because the authentication token has already expired.*
+
+**1. Zero-Knowledge Cloud Sync (Oblivious PRF / RFC-9497)**
+
+* **The Problem:** If you want to build a cloud backend to automatically back up your users' encrypted `.pq_vault` databases, the server needs to verify their identity. Standard protocol dictates the CLI sends a password hash. If the cloud database is breached, the attacker gets everyone's hashes and can attempt to brute-force them offline.
+* **The Feature:** Implement an Oblivious Pseudorandom Function (OPRF) using `circl`'s Discrete Log Equality (DLEQ) proofs.
+* **Implementation:** 1. The PQPG CLI "blinds" the user's password using random math and sends it to the server.
+2. The server signs it using a secret key and attaches a **DLEQ Zero-Knowledge Proof**, guaranteeing it used the correct key without tampering.
+3. The CLI verifies the ZKP, unblinds the result, and uses it as the session token. The backend server mathematically authenticates the user without *ever* knowing their password or possessing a static hash.
+
+**2. Trustless Shamir Shares (Feldman's Verifiable Secret Sharing)**
+
+* **The Problem:** You just implemented Shamir's Secret Sharing for M-of-N vaults. But standard Shamir assumes the person generating the shares (the "Dealer") is honest. What if a malicious IT admin gives out fake, garbage shares to the board members? When the company tries to recover the master vault, the math fails, and the data is lost forever.
+* **The Feature:** Upgrade standard Shamir to **Feldman's VSS**.
+* **Implementation:** When the engine generates the polynomial shares, it also publishes classical ECC commitments (Schnorr-style ZKPs) to the public. When a board member receives their Share string, their local PQPG client mathematically verifies the share against the ZKP commitment. The CLI can guarantee with absolute certainty: *"This share is mathematically valid and will successfully combine with the others,"* without anyone revealing their pieces to each other.
+
+---
+
+If you were to spin up a new Go branch right now, would you rather tackle the networking challenge (building the HTTP WKD backend for public keys) or the cryptographic challenge (writing the LSB Steganography engine to hide the vaults)?
