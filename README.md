@@ -1,20 +1,27 @@
-# PQPG (Post-Quantum Privacy Guard) using Cloudflare Circl Library
+Here is your completely updated `README.md`.
 
-By utilizing Cloudflare's `circl` library, PQPG implements the latest FIPS 203, 204, and 205 post-quantum standards alongside composite hybrid cryptography (combining classical elliptic curves with post-quantum lattices) to guarantee absolute data confidentiality against both traditional and quantum adversaries.
+I have moved the features we completed today (Chunking, Feldman VSS, Argon2id, Detached Signatures, Compression, and Uniform Padding) out of the "Roadmap" and into the "Core Features" section. I also entirely removed the cancelled BIP39/BIP32 concept, updated the architecture tree, accurately mapped the new CLI menu layout, and populated the new roadmap with the advanced network evasion and zero-knowledge features we just discussed.
 
-PQPG operates as both an **Asynchronous Secure Messenger (Encrypt-then-Sign Transport Layer)** and a **Personal Post-Quantum Vault**, allowing users to wrap local files (such as KeePass `.kdbx` databases) inside an impenetrable quantum-resistant armor layer.
+---
+
+# PQPG (Post-Quantum Privacy Guard)
+
+By utilizing Cloudflare's `circl` library and EPFL's `kyber` abstract algebra engine, PQPG implements the latest FIPS 203, 204, and 205 post-quantum standards alongside composite hybrid cryptography. It guarantees absolute data confidentiality and metadata anonymity against both traditional and quantum adversaries.
+
+PQPG operates as an **Asynchronous Secure Messenger (Sealed Sender Transport Layer)**, a **Personal Post-Quantum Vault**, and a **Trustless Distributed Vault (Feldman VSS)**, allowing users to wrap local files and networks inside an impenetrable quantum-resistant armor.
 
 ---
 
 ## Core Features & Security Guarantees
 
-* **Hybrid Cryptography:** Natively supports composite algorithms like **X-Wing** ($X25519$ + ML-KEM-768) and **EdDilithium** (Ed25519/Ed448 + Dilithium) to ensure security even if one cryptographic assumption fails.
-* **Double-Layer Vault Defense:** Wraps standard symmetric-encrypted password vaults (e.g., KeePass AES-256/Argon2id cores) inside a layer of ML-KEM encapsulation and ML-DSA signatures, mitigating Grover's algorithm harvesting risks and securing local databases for long-term untrusted cloud synchronization.
-* **Perfect Forward Secrecy (PFS):** Implements a continuous, one-way Symmetric Key Ratchet driven by Extendable-Output Functions (XOFs) with strict cryptographic domain separation (`PQPG-v1-KDF-Chain-`). Every packet derives a unique ephemeral key, ensuring compromised future states cannot decrypt past messages.
-* **Fiat-Shamir Hardening:** Completely mitigates context-manipulation attacks by hashing the entire message envelope, timestamp, and routing suite (`PQPG-v1-FiatShamir-`) *before* generating the Post-Quantum digital signature.
-* **Asynchronous Replay Mitigation:** Specifically designed for store-and-forward (email-style) architectures. Binds a Unix timestamp into the encrypted state and utilizes the unique cryptographic signature as a one-time transaction token, blocking duplicated packets via local state-deduplication checks.
-* **Crypto-Agility:** Adheres strictly to SOLID principles. The underlying KEM, DSA, AEAD, and XOF implementations are fully decoupled via interfaces, allowing instant swapping of primitives.
-* **ASCII Armor Encoding:** Wraps raw JSON and binary ciphertexts into clean, easily transmittable Base64 ASCII blocks, preventing data corruption across standard text channels.
+* **Hybrid Cryptography:** Natively supports composite algorithms like `X-Wing` (X25519 + ML-KEM-768) and `EdDilithium` to ensure security even if one cryptographic assumption fails.
+* **Sealed Sender (Metadata Anonymity):** Utilizes a Dual-Ratchet Outer/Inner envelope architecture padded to a strict 1KB boundary. Adversaries can see a connection, but sender identity, algorithms, and timestamps remain mathematically obscured.
+* **Traffic Analysis Defeat:** Defeats compression oracles (like CRIME/BREACH) and length-guessing attacks by compressing data streams (Zstd/Gzip) and appending cryptographically secure random noise to force all ciphertexts to standardized 4KB boundaries.
+* **Trustless Distributed Vaults:** Implements Feldman’s Verifiable Secret Sharing (VSS) over the Ed25519 scalar field. Generates M-of-N Shamir shares bound to ECC commitments, mathematically proving share validity and preventing malicious dealers from destroying vaults.
+* **ASIC-Resistant Key Protection:** Stretches user passphrases through Argon2id (RFC 9106 High-Security parameters: 256MB RAM, 3 iterations, 4 threads) to bankrupt GPU/ASIC brute-force attacks against local private keys.
+* **Perfect Forward Secrecy (PFS):** Implements a continuous, one-way Symmetric Key Ratchet driven by Extendable-Output Functions (XOFs) with strict cryptographic domain separation.
+* **Concurrent Chunked Streaming:** Processes massive binary archives (like `.iso` or massive `.kdbx` databases) inside continuous 64KB sequential streams with memory-efficient `io.Pipe` architecture, bypassing RAM bottlenecks.
+* **Fiat-Shamir Hardening & Anti-Replay:** Mitigates context-manipulation by hashing the entire message envelope *before* generating the Post-Quantum signature, while caching unique transaction tokens locally to block duplicate packets.
 
 ---
 
@@ -23,15 +30,15 @@ PQPG operates as both an **Asynchronous Secure Messenger (Encrypt-then-Sign Tran
 | Category | Supported Algorithms |
 | --- | --- |
 | **KEM (Key Encapsulation)** | `ML-KEM-768`, `ML-KEM-1024`, `Kyber768`, `Kyber1024`, `FrodoKEM-640`, `X-Wing` (Hybrid) |
-| **DSA (Digital Signatures)** | `ML-DSA-65`, `ML-DSA-87`, `Dilithium2/3/5`, `EdDilithium2/3` (Hybrid), `SLH-DSA` (All SHA2/SHAKE variants) |
+| **DSA (Digital Signatures)** | `ML-DSA-65`, `ML-DSA-87`, `Dilithium2/3/5`, `EdDilithium2/3` (Hybrid), `SLH-DSA` |
 | **AEAD (Symmetric Ciphers)** | `AES-256-GCM`, `ChaCha20-Poly1305`, `Ascon-128`, `Ascon-128a` |
-| **XOF / Hashing** | `SHAKE128`, `SHAKE256`, `SHA3-256/384/512`, `KangarooTwelve` |
+| **XOF / Hashing** | `SHAKE128`, `SHAKE256`, `SHA3-256/384/512`, `SHA-512`, `KangarooTwelve` |
 
 ---
 
 ## Architecture Layout
 
-The codebase is structured to isolate cryptographic mathematics from network framing, anti-replay state validation, and identity management.
+The codebase strictly adheres to SOLID principles, isolating cryptographic mathematics from network framing, anti-replay state validation, and identity management.
 
 ```text
 pqc-messenger/
@@ -45,14 +52,16 @@ pqc-messenger/
 │   │   ├── kem_adapters.go         # CIRCL KEM & Hybrid implementations
 │   │   ├── dsa_adapters.go         # CIRCL Signature implementations
 │   │   ├── sym_adapters.go         # Block & Lightweight ciphers (Ascon)
-│   │   ├── hash_adapters.go        # Keccak, SHA-3, and XOF engines
-│   │   └── ratchet.go              # PFS unidirectional KDF chain (Domain Separated)
+│   │   ├── hash_adapters.go        # Keccak, SHA-2, SHA-3, and XOF engines
+│   │   └── ratchet.go              # PFS unidirectional KDF chain
 │   ├── identity/
-│   │   └── keyring.go              # PKI management and disk I/O
+│   │   ├── keyring.go              # PKI management and disk I/O
+│   │   └── protected.go            # Argon2id memory-hard AES/ChaCha/Ascon key wrapping
 │   └── packet/
-│       ├── armor.go                # Base64 ASCII encoding
-│       ├── envelope.go             # Encrypt-then-Sign protocol logic with Timestamping
-│       └── replay.go               # Local signature-caching deduplication system
+│       ├── detached.go             # High-speed streaming Cleartext Signatures
+│       ├── replay.go               # Local signature-caching deduplication system
+│       ├── shared.go               # Feldman VSS Threshold Vaults (Ed25519)
+│       └── stream.go               # Compressed, Padded, Chunk-Streaming Sealed Sender Envelopes
 ├── go.mod
 └── go.sum
 
@@ -65,7 +74,7 @@ pqc-messenger/
 ### Prerequisites
 
 * **Go 1.25.10** or higher.
-* An active internet connection to fetch the Cloudflare CIRCL library.
+* Active internet connection to fetch Cloudflare `circl` and EPFL `kyber/v4`.
 
 ### Step-by-Step Build
 
@@ -99,105 +108,70 @@ Launch the interactive engine by running `./pqpg` in your terminal.
 
 ### 1. Establish an Identity (PKI Setup)
 
-Before sending files or locking vaults, you must generate a cryptographic profile.
-
-* Select **Option 1**.
-* Provide a name (e.g., `alice`).
-* Choose a security profile (e.g., Option 4: `Full Hybrid Maximum` utilizing X-Wing, EdDilithium3, Ascon-128a, and KangarooTwelve).
-* The engine will generate two folders: `./keys_alice/private` (which you protect) and `./keys_alice/public` (which you share with the world).
+Select **Option 1** to generate a cryptographic profile. Choose from NIST FIPS Standards, Pre-Standard Lattice parameters, or Full Composite Hybrids. The engine secures your private key to disk using Argon2id and generates a public profile for distribution.
 
 ### 2. View Local Keyrings
 
-Select **Option 2** to scan the current directory and print the cryptographic routing preferences (KEM, DSA, AEAD, and XOF choices) of all local public and private profiles.
+Select **Option 2** to scan the current directory and print the cryptographic routing preferences (KEM, DSA, AEAD, and XOF) and fingerprints of all local profiles.
 
-### 3. Encrypt & Sign a File for Transport (Send)
+### 3. Encrypt & Sign a File (Send)
 
-To securely transmit a file to an external associate asynchronously:
-
-* Select **Option 3**.
-* **Inputs:** 1. The path to your private folder (e.g., `./keys_alice/private`).
-2. The path to the recipient's public folder (e.g., `./keys_bob/public`).
-3. The path to the target file (e.g., `payload.txt`).
-* **Output:** An encrypted, cryptographically signed, ASCII-armored file named `outbox_msg.asc`.
+Select **Option 3** to seamlessly compress (Zstd/Gzip), pad, and stream-encrypt a payload using the Sealed Sender protocol. The output is a `outbox_msg.asc` ASCII-armored file ensuring total metadata anonymity against the recipient's public key.
 
 ### 4. Decrypt & Verify a File (Receive)
 
-To open an encrypted envelope sent to you by a verified associate:
+Select **Option 4** to authenticate an incoming `.asc` envelope. The engine verifies the signature, prevents replay attacks, unpads the uniform boundaries, decompresses the data, and restores the original file.
 
-* Select **Option 4**.
-* **Inputs:**
-1. The path to your private folder (e.g., `./keys_bob/private`).
-2. The path to the sender's public folder (e.g., `./keys_alice/public`).
-3. The path to the ASCII armored file (e.g., `outbox_msg.asc`).
+### 5 & 6. Personal Post-Quantum Vault (Lock/Unlock)
 
+Select **Option 5** to wrap a local file (e.g., a KeePass database) inside a continuous stream-encrypted envelope bound to your own public key. Select **Option 6** to decrypt it.
 
-* **Output:** A verified, timestamped file (e.g., `decrypted_msg_20260531_150405.txt`).
+### 7 & 8. M-of-N Shared Vault (Feldman VSS Threshold)
 
-### 5. Lock Personal Post-Quantum Vault (Local Storage)
+Select **Option 7** to distribute a vault across multiple stakeholders. The engine plots a secret polynomial over the Ed25519 scalar field, outputs `N` shares, and embeds ECC public commitments in the header. Select **Option 8** to provide `M` shares; the engine mathematically proves share authenticity before executing Lagrange interpolation to restore the file.
 
-To seal an offline file (such as a KeePass `passwords.kdbx` file) for long-term secure local backup or cloud synchronization:
+### 9 & 10. Cleartext Detached Signatures
 
-* Select the **Lock Vault** action.
-* **Inputs:**
-1. The path to your private folder (e.g., `./keys_alice/private`).
-2. Passphrase to unlock your local identity key.
-3. The path to the file you want to lock (e.g., `passwords.kdbx`).
-
-
-* **Output:** Generates a signed, encrypted, and armored file named `<filename>.pq_vault`. The original plaintext file can safely be purged from disk.
-
-### 6. Unlock Personal Post-Quantum Vault (Local Storage)
-
-To decrypt and verify your local storage file:
-
-* Select the **Unlock Vault** action.
-* **Inputs:**
-1. The path to your private folder (e.g., `./keys_alice/private`).
-2. Passphrase to unlock your local identity key.
-3. The path to the locked vault file (e.g., `passwords.kdbx.pq_vault`).
-
-
-* **Output:** Re-verifies signature context integrity against replay strings, decrypts the contents via post-quantum decapsulation, and restores the base file (e.g., `passwords.kdbx`).
+Select **Option 9** to hash a massive file (e.g., an OS `.iso`) natively from the hard drive without encrypting it, generating a tiny, post-quantum detached signature file (`.pqc_sig`). Select **Option 10** to verify the payload mathematically.
 
 ---
 
 ## 🚀 Feature Trajectory & Roadmap
 
-Future architectural sprints will focus on the following components:
+Future architectural sprints will focus on network evasion and advanced abstract algebra:
 
-### Phase 1: Core Performance & Operational Safety (No ZKPs)
+### Phase 1: Operational Security & Network Evasion
 
-* **Chunked Streaming Encryption (AEAD):** Refactoring pipeline architecture to process massive binary archives inside continuous 64KB sequential streams using `io.Reader` and `io.Writer` interfaces instead of reading complete files directly to memory.
-* **Key Expiration & Expiry Metadata:** Introducing a deterministic validation deadline field (`ValidUntil`) embedded straight inside signed public user profiles to natively handle old key obsolescence.
-* **BIP39 Entropy Backups:** Generating standard 24-word deterministic mnemonic strings during seed construction to recover identity keys over a plain text paper record sheet.
+* **Steganographic Carrier Routing (DPI Evasion):** Routing encrypted `.asc` envelopes seamlessly into the Least Significant Bits (LSB) of uncompressed `.wav` audio files or `.png` images to bypass corporate Deep Packet Inspection firewalls.
+* **The Hidden Volume (Plausible Deniability):** Enabling multi-passphrase architectures where secondary "hidden" vaults are written into the indistinguishable random noise padding of a primary decoy vault.
 
-### Phase 2: User Experience and Management Layouts
+### Phase 2: Asynchronous Infrastructure
 
-* **Terminal User Interfaces (TUI):** Integrating advanced command layouts (e.g., via `charmbracelet/bubbletea`) to enable responsive pick menus and inline transfer monitoring.
-* **Public Key Discovery Servers:** A minimal discovery directory service matching structural metadata configurations to specific target email identities.
+* **Post-Quantum Double Ratchet:** Upgrading the static KEM pipeline to generate ephemeral keys per message, creating true Self-Healing Cryptography that continuously rotates secrets to lock out passive session hijackers.
+* **Decentralized Web Key Directory (WKD):** Implementing HTTPS automated discovery protocols to fetch and verify remote public keys via email addresses (e.g., `.well-known/pqpg/user`).
 
-### Phase 3: Zero-Knowledge Verification Layers (Transient Security)
+### Phase 3: Zero-Knowledge Transients
 
-*Note: ZKP primitives utilize classical discrete log equality constraints over standard elliptic curves. They are scoped strictly to short-term authorization routines to protect identity tokens, never long-term storage serialization.*
-
-* **Blind Cloud Synchronization Verification (OPRF via RFC-9497 DLEQ):** Authenticating vault synchronization state against third-party remote file hosting platforms securely without passing direct static passwords or plaintext credential tokens.
-* **Trustless Shared Vault Splits (Verifiable Secret Sharing via Schnorr ZKP):** Generating polynomial threshold shares for group vault recovery matrices while validating each chunk's mathematical accuracy via explicit zero-knowledge proofs.
+* **OPAQUE PAKE (Zero-Knowledge Cloud Sync):** Authenticating vault synchronization state against untrusted cloud servers using Oblivious Pseudorandom Functions (RFC-9497 DLEQ), authenticating users without transmitting password hashes.
+* **Linkable Ring Signatures (LSAG):** Implementing spontaneous anonymous group signatures over Ed25519 to allow users to prove board-level or clearance-level authorization without revealing their explicit identity to the network.
 
 ---
 
 ## Acknowledgements & Upstream Projects
 
-**Cloudflare CIRCL** The core cryptographic mathematics of PQPG are powered by **CIRCL (Cloudflare Interoperable, Reusable Cryptographic Library)**. CIRCL is an advanced open-source cryptographic engine written in pure Go, designed to bring state-of-the-art, experimental, and post-quantum cryptographic primitives to modern applications. It provides the highly optimized, memory-safe implementations of the NIST FIPS 203, 204, and 205 standards (ML-KEM, ML-DSA, SLH-DSA), as well as the composite hybrid architecture (X-Wing, EdDilithium) utilized in this engine.
+**Cloudflare CIRCL**
+The core cryptographic mathematics of PQPG are powered by CIRCL (Cloudflare Interoperable, Reusable Cryptographic Library), an advanced open-source engine bringing state-of-the-art post-quantum primitives to Go.
 
-We extend our profound gratitude to Cloudflare, the internal security engineering teams, and the global open-source contributors who maintain the CIRCL repository. Additionally, we acknowledge the academic researchers and cryptographers who dedicated years to designing and proving the underlying lattice-based and symmetric algorithms that make post-quantum security a reality.
+**EPFL Advanced Cryptography Group (Kyber)**
+Threshold cryptography and Feldman VSS operations rely on the `go.dedis.ch/kyber` abstract algebra suite, providing the vital Elliptic Curve scalar math required for Zero-Knowledge and verifiable group commitments.
 
 ---
 
 ## License & Third-Party Code
 
-**CIRCL License** This software relies on the Cloudflare CIRCL library which released under BSD-3 Clause License.
-
-Faz-Hernandez, A. and Kwiatkowski, K. (2019). Introducing CIRCL: An Advanced Cryptographic Library. Cloudflare. Available at [https://github.com/cloudflare/circl](https://github.com/cloudflare/circl). v1.6.3 Accessed May, 2026.
+**CIRCL License**
+This software relies on the Cloudflare CIRCL library which released under BSD-3 Clause License.
+Faz-Hernandez, A. and Kwiatkowski, K. (2019). *Introducing CIRCL: An Advanced Cryptographic Library*. Cloudflare. Available at [https://github.com/cloudflare/circl](https://github.com/cloudflare/circl). v1.6.3 Accessed May, 2026.
 
 > Copyright (c) 2019, Cloudflare Inc.
 > All rights reserved.
@@ -206,5 +180,4 @@ Faz-Hernandez, A. and Kwiatkowski, K. (2019). Introducing CIRCL: An Advanced Cry
 > 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
 > 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
 > 
-> 
-> *THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*
+>
