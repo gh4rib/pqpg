@@ -8,14 +8,26 @@ PQPG operates as an **Asynchronous Secure Messenger (Sealed Sender Transport Lay
 
 ## Core Features & Security Guarantees
 
-* **Hybrid Cryptography:** Natively supports composite algorithms like `X-Wing` (X25519 + ML-KEM-768) and `EdDilithium` to ensure security even if one cryptographic assumption fails.
-* **Sealed Sender (Metadata Anonymity):** Utilizes a Dual-Ratchet Outer/Inner envelope architecture padded to a strict 1KB boundary. Adversaries can see a connection, but sender identity, algorithms, and timestamps remain mathematically obscured.
-* **Traffic Analysis Defeat:** Defeats compression oracles (like CRIME/BREACH) and length-guessing attacks by compressing data streams (Zstd/Gzip) and appending cryptographically secure random noise to force all ciphertexts to standardized 4KB boundaries.
+* **Hybrid Cryptography & Crypto-Agility:** Natively supports composite algorithms like `X-Wing` (X25519 + ML-KEM-768) and `EdDilithium`. Every database and network protocol dynamically inherits the user's chosen Keccak (XOF) and AEAD suite, eliminating hardcoded downgrade vulnerabilities.
+* **Sealed Sender & Receiver Anonymity:** Uses a Dual-Layer envelope padded to strict 1KB boundaries. To prevent network metadata leakage, PQPG drops plaintext public keys and relies on **32-byte Keccak Key Hints**, meaning a network eavesdropper cannot mathematically identify the receiver.
+* **Zero-Knowledge BoltDB (Blind Indexing):** Local databases (`sessions.db`) are encrypted using AES-256-GCM. Furthermore, all database keys (Contact IDs and Replay Tokens) are hashed using `HMAC-SHA3-256`, rendering the local contact graph and message history completely blind to forensic analysis.
+* **Perfect Forward Secrecy (PFS):** Implements a Post-Quantum Double Ratchet. The state machine seamlessly handles out-of-order packets, dropping "dangling" keys after a strict 1000-message boundary to prevent Ram/State Exhaustion attacks.
+* **Simultaneous Initiation (Glare) Resolution:** Safely resolves the "Crossing Messages Paradox" using lexicographical tie-breaking without requiring a central server, ensuring sessions synchronize flawlessly even if both parties instantiate communication at the exact same millisecond.
+* **AEAD Header Authentication:** Eliminates CPU Denial of Service attacks by binding the Outer Envelope JSON directly into the inner AES-GCM engine as Additional Authenticated Data (AAD). Tampered metadata triggers an instantaneous failure before any disk I/O occurs.
+* **Strict Domain Separation:** Prevents Signature Context Confusion by prefixing all hashes (e.g., Detached Signatures, Ratchet KDFs, Blind Indexes) with unique, hardcoded domain separators.
 * **Trustless Distributed Vaults:** Implements Feldman’s Verifiable Secret Sharing (VSS) over the Ed25519 scalar field. Generates M-of-N Shamir shares bound to ECC commitments, mathematically proving share validity and preventing malicious dealers from destroying vaults.
-* **ASIC-Resistant Key Protection:** Stretches user passphrases through Argon2id (RFC 9106 High-Security parameters: 256MB RAM, 3 iterations, 4 threads) to bankrupt GPU/ASIC brute-force attacks against local private keys.
-* **Perfect Forward Secrecy (PFS):** Implements a continuous, one-way Symmetric Key Ratchet driven by Extendable-Output Functions (XOFs) with strict cryptographic domain separation.
-* **Concurrent Chunked Streaming:** Processes massive binary archives (like `.iso` or massive `.kdbx` databases) inside continuous 64KB sequential streams with memory-efficient `io.Pipe` architecture, bypassing RAM bottlenecks.
-* **Fiat-Shamir Hardening & Anti-Replay:** Mitigates context-manipulation by hashing the entire message envelope *before* generating the Post-Quantum signature, while caching unique transaction tokens locally to block duplicate packets.
+
+---
+
+## The Post-Quantum Double Ratchet Engine
+
+PQPG manages Perfect Forward Secrecy and Post-Compromise Security using a highly robust "Separation of Concerns" architecture. The engine is divided into three distinct layers to prevent database corruption during asynchronous transfers:
+
+1. **The Brain (`double_ratchet.go`):** A strictly stateless, functional mathematical engine. It knows nothing about the network or databases; it simply ingests byte arrays, executes Keccak KDF sponge derivations, and outputs new cryptographic chain keys.
+2. **The Memory (`session.go` / BoltDB):** The ACID-compliant, encrypted storage vault. It safely stores the `RatchetState`, tracks historical public keys to defeat the **Implicit Rejection (FO Transform) Trap**, and runs the HMAC-SHA3 Anti-Replay Cache.
+3. **The Conductor (`stream.go`):** The orchestrator layer. It pulls state from BoltDB, asks the Brain to spin the Ratchets in RAM, and utilizes **Deferred Commits**. The database state is *only* updated and saved to the hard drive if the AEAD cryptographic signature perfectly authenticates the payload, rendering PQPG virtually immune to session corruption from malformed files.
+
+*(Note: PQPG also includes a **Stateless Fallback** mechanism, providing a traditional PGP-style mathematical envelope that completely bypasses the Ratchet database for cold-storage and air-gapped backups).*
 
 ---
 
@@ -38,24 +50,27 @@ The codebase strictly adheres to SOLID principles, isolating cryptographic mathe
 pqc-messenger/
 ├── cmd/
 │   └── messenger/
-│       └── main.go                 # Interactive CLI orchestrator (Keys, Envelopes, & Vaults)
+│       └── main.go
+|       └── *-handlers.go
 ├── internal/
 │   ├── crypto/
 │   │   ├── interfaces.go           # Abstract SOLID contracts
-│   │   ├── registry.go             # Suite validation and factory engine
-│   │   ├── kem_adapters.go         # CIRCL KEM & Hybrid implementations
-│   │   ├── dsa_adapters.go         # CIRCL Signature implementations
-│   │   ├── sym_adapters.go         # Block & Lightweight ciphers (Ascon)
-│   │   ├── hash_adapters.go        # Keccak, SHA-2, SHA-3, and XOF engines
-│   │   └── ratchet.go              # PFS unidirectional KDF chain
+│   │   ├── registry.go             # Suite validation and dynamic factory engine
+│   │   ├── kem-adapters.go         # CIRCL KEM & Hybrid implementations
+│   │   ├── dsa-adapters.go         # CIRCL Signature implementations
+│   │   ├── sym-adapters.go         # Block & Lightweight ciphers (Ascon)
+│   │   ├── hash-adapters.go        # Keccak, SHA-2, SHA-3, and XOF engines
+│   │   └── double-ratchet.go       # Stateless KDF math for the PFS Ratchet
 │   ├── identity/
 │   │   ├── keyring.go              # PKI management and disk I/O
-│   │   └── protected.go            # Argon2id memory-hard AES/ChaCha/Ascon key wrapping
+│   │   ├── protected.go            # Argon2id memory-hard AES/ChaCha/Ascon key wrapping
+│   │   └── session.go              # AES-GCM Encrypted BoltDB (Blind Indexes & Anti-Replay)
 │   └── packet/
 │       ├── detached.go             # High-speed streaming Cleartext Signatures
-│       ├── replay.go               # Local signature-caching deduplication system
 │       ├── shared.go               # Feldman VSS Threshold Vaults (Ed25519)
-│       └── stream.go               # Compressed, Padded, Chunk-Streaming Sealed Sender Envelopes
+│       ├── stateless.go            # Non-Ratchet Fallback for Cold Storage / Air-Gapped Transfers
+│       ├── stream.go               # Double Ratchet Sealed Sender Envelopes (Chunked Streaming)
+│       └── vault.go                # Static Deterministic Encryption for Local At-Rest Data
 ├── go.mod
 └── go.sum
 
@@ -108,17 +123,13 @@ Select **Option 1** to generate a cryptographic profile. Choose from NIST FIPS S
 
 Select **Option 2** to scan the current directory and print the cryptographic routing preferences (KEM, DSA, AEAD, and XOF) and fingerprints of all local profiles.
 
-### 3. Encrypt & Sign a File (Send)
+### 3 & 4. Asynchronous Messaging (Double Ratchet)
 
-Select **Option 3** to seamlessly compress (Zstd/Gzip), pad, and stream-encrypt a payload using the Sealed Sender protocol. The output is a `outbox_msg.asc` ASCII-armored file ensuring total metadata anonymity against the recipient's public key.
-
-### 4. Decrypt & Verify a File (Receive)
-
-Select **Option 4** to authenticate an incoming `.asc` envelope. The engine verifies the signature, prevents replay attacks, unpads the uniform boundaries, decompresses the data, and restores the original file.
+Select **Option 3** to seamlessly compress, pad, and stream-encrypt a payload using the Double Ratchet protocol. The output is a `outbox_[filename].asc` file ensuring Forward Secrecy. Select **Option 4** to authenticate an incoming `.asc` envelope. The engine verifies the AEAD headers, spins the state database, and restores the file.
 
 ### 5 & 6. Personal Post-Quantum Vault (Lock/Unlock)
 
-Select **Option 5** to wrap a local file (e.g., a KeePass database) inside a continuous stream-encrypted envelope bound to your own public key. Select **Option 6** to decrypt it.
+Select **Option 5** to wrap a local file (e.g., a KeePass database) inside a continuous stream-encrypted envelope deterministically bound to your identity. Select **Option 6** to decrypt it.
 
 ### 7 & 8. M-of-N Shared Vault (Feldman VSS Threshold)
 
@@ -126,7 +137,15 @@ Select **Option 7** to distribute a vault across multiple stakeholders. The engi
 
 ### 9 & 10. Cleartext Detached Signatures
 
-Select **Option 9** to hash a massive file (e.g., an OS `.iso`) natively from the hard drive without encrypting it, generating a tiny, post-quantum detached signature file (`.pqc_sig`). Select **Option 10** to verify the payload mathematically.
+Select **Option 9** to hash a massive file natively from the hard drive without encrypting it, generating a tiny, domain-separated detached signature file (`.pqc_sig`). Select **Option 10** to verify the payload.
+
+### 11 & 12. Network Evasion (Steganography)
+
+Select **Option 11** to mathematically weave a `.asc` or `.pq_vault` payload into the Least Significant Bits (LSB) of a PNG/BMP image or WAV/AIFF audio carrier to bypass DPI firewalls. Select **Option 12** to extract the payload natively.
+
+### 13 & 14. Stateless Transfers (Simple Send Fallback)
+
+Select **Option 13** to encrypt a file utilizing a single ephemeral KEM exchange without initializing the BoltDB state machine. Ideal for cold-storage backups. Select **Option 14** to extract a stateless payload.
 
 ---
 
