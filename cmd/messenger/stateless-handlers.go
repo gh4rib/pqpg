@@ -25,10 +25,29 @@ func handleStatelessSend(reader *bufio.Reader) {
 		return
 	}
 
-	fmt.Print("Enter path to RECIPIENT'S public folder (e.g., ./keys_bob/public): ")
-	pubPath := readInput(reader)
+	// Initialize DB strictly to access the Address Book
+	registry := crypto.NewRegistry()
+	xof, err := registry.GetXOF(senderKr.Profile.XOFSuite)
+	if err != nil {
+		return
+	}
+	xof.Write([]byte("PQPG-BoltDB-MasterKey"))
+	xof.Write(senderKr.KEMPrivKey)
+	sessionKey := xof.Derive(nil, 32)
 
-	fmt.Print("Enter path to the file you want to send: ")
+	sessionStore, err := identity.OpenSessionStore(privPath, sessionKey)
+	if err != nil {
+		return
+	}
+	defer sessionStore.Close()
+
+	fmt.Println("\n[*] Select the RECIPIENT:")
+	receiverProf, err := selectContact(reader, sessionStore, "RECIPIENT")
+	if err != nil {
+		return
+	}
+
+	fmt.Print("\nEnter path to the file you want to send: ")
 	filePath := readInput(reader)
 
 	inFile, err := os.Open(filePath)
@@ -55,14 +74,8 @@ func handleStatelessSend(reader *bufio.Reader) {
 		compression = "None"
 	}
 
-	receiverProf, err := identity.LoadProfile(pubPath)
-	if err != nil {
-		fmt.Printf("[-] Failed to load recipient public keys: %v\n", err)
-		return
-	}
-
 	baseFilename := filepath.Base(filePath)
-	outboxName := fmt.Sprintf("stateless_%s.asc", baseFilename) // Explicit naming
+	outboxName := fmt.Sprintf("stateless_%s.asc", baseFilename)
 	outFile, err := os.Create(outboxName)
 	if err != nil {
 		fmt.Printf("[-] Failed to create stateless stream: %v\n", err)
@@ -93,17 +106,30 @@ func handleStatelessReceive(reader *bufio.Reader) {
 		return
 	}
 
-	fmt.Print("Enter path to SENDER'S public folder (e.g., ./keys_alice/public): ")
-	pubPath := readInput(reader)
-
-	fmt.Print("Enter path to the stateless armored packet file (e.g., stateless_msg.asc): ")
-	ascPath := readInput(reader)
-
-	senderProf, err := identity.LoadProfile(pubPath)
+	// Initialize DB strictly to access Address Book & Anti-Replay Cache
+	registry := crypto.NewRegistry()
+	xof, err := registry.GetXOF(receiverKr.Profile.XOFSuite)
 	if err != nil {
-		fmt.Printf("[-] Failed to load sender public keys: %v\n", err)
 		return
 	}
+	xof.Write([]byte("PQPG-BoltDB-MasterKey"))
+	xof.Write(receiverKr.KEMPrivKey)
+	sessionKey := xof.Derive(nil, 32)
+
+	sessionStore, err := identity.OpenSessionStore(privPath, sessionKey)
+	if err != nil {
+		return
+	}
+	defer sessionStore.Close()
+
+	fmt.Println("\n[*] Select the SENDER:")
+	senderProf, err := selectContact(reader, sessionStore, "SENDER")
+	if err != nil {
+		return
+	}
+
+	fmt.Print("\nEnter path to the stateless armored packet file (e.g., stateless_msg.asc): ")
+	ascPath := readInput(reader)
 
 	inFile, err := os.Open(ascPath)
 	if err != nil {
@@ -119,27 +145,7 @@ func handleStatelessReceive(reader *bufio.Reader) {
 		return
 	}
 
-	fmt.Println("[*] Engaging Stateless Decryption Engine...")
-	// --- INITIALIZE DATABASE STRICTLY FOR ANTI-REPLAY ---
-	registry := crypto.NewRegistry()
-	xof, err := registry.GetXOF(receiverKr.Profile.XOFSuite)
-	if err != nil {
-		fmt.Printf("[-] Failed to load Keccak suite: %v\n", err)
-		return
-	}
-	xof.Write([]byte("PQPG-BoltDB-MasterKey"))
-	xof.Write(receiverKr.KEMPrivKey)
-	sessionKey := xof.Derive(nil, 32)
-
-	sessionStore, err := identity.OpenSessionStore(privPath, sessionKey)
-	if err != nil {
-		fmt.Printf("[-] Failed to initialize database: %v\n", err)
-		return
-	}
-	defer sessionStore.Close()
-
 	fmt.Println("[*] Engaging Stateless Decryption Engine with Anti-Replay Memory...")
-	// Pass the sessionStore into the function
 	err = packet.StatelessOpen(inFile, outFile, sessionStore, receiverKr, senderProf)
 	outFile.Close()
 
@@ -149,6 +155,6 @@ func handleStatelessReceive(reader *bufio.Reader) {
 		return
 	}
 
-	fmt.Printf("[+] STATeless VERIFICATION SUCCESSFUL. Mathematical identity proven.\n")
+	fmt.Printf("[+] STATELESS VERIFICATION SUCCESSFUL. Mathematical identity proven.\n")
 	fmt.Printf("[+] Decrypted file saved to: %s\n", outFilename)
 }

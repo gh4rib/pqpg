@@ -16,7 +16,7 @@ func main() {
 		fmt.Println(" --- IDENTITY & KEY MANAGEMENT ---")
 		fmt.Println("  1) Generate New Identity (PKI Setup)")
 		fmt.Println("  2) View Local Keyrings")
-		fmt.Println("\n --- Stateful (Double-Ratchet) NETWORK TRANSFERS (SEALED SENDER) ---")
+		fmt.Println("\n --- NETWORK TRANSFERS (SEALED SENDER) ---")
 		fmt.Println("  3) Encrypt & Sign a File (Send)")
 		fmt.Println("  4) Decrypt & Verify a File (Receive)")
 		fmt.Println("\n --- LOCAL VAULT STORAGE ---")
@@ -34,6 +34,9 @@ func main() {
 		fmt.Println("\n --- STATELESS TRANSFERS (SIMPLE SEND FALLBACK) ---")
 		fmt.Println(" 13) Encrypt & Sign a File (Stateless Send)")
 		fmt.Println(" 14) Decrypt & Verify a File (Stateless Receive)")
+		fmt.Println("\n --- CONTACTS & SESSIONS ---")
+		fmt.Println(" 15) Import Contact to Address Book")
+		fmt.Println(" 16) Reset Secure Session (Panic Button)")
 		fmt.Println("\n --- SYSTEM ---")
 		fmt.Println(" 99) Exit")
 		fmt.Println("=====================================================================")
@@ -70,6 +73,10 @@ func main() {
 			handleStatelessSend(reader)
 		case "14":
 			handleStatelessReceive(reader)
+		case "15":
+			handleImportContact(reader)
+		case "16":
+			handleResetSession(reader)
 		case "99":
 			fmt.Println("[*] Exiting PQPG. Stay secure.")
 			return

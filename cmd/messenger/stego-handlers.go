@@ -56,7 +56,6 @@ func handleStegoInject(reader *bufio.Reader) {
 		return
 	}
 
-	// If not audio, process as Image
 	fmt.Println("\nSelect Lossless Output Format for Image:")
 	fmt.Println(" 1) PNG (Standard web footprint, compressed size, slower generation)")
 	fmt.Println(" 2) BMP (Standard forensic footprint, massive size, instant generation)")
