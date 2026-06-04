@@ -35,6 +35,9 @@ func SignCleartextStream(in io.Reader, senderKr *identity.Keyring, hashSuite str
 		return "", err
 	}
 
+	// DOMAIN SEPARATION
+	hasher.Write([]byte("PQPG-Detached-Signature-v1"))
+
 	// io.Copy automatically handles the streaming chunk loop with a 32KB buffer
 	if _, err := io.Copy(hasher.NewWriter(), in); err != nil {
 		return "", fmt.Errorf("file hashing interrupted: %w", err)
@@ -101,6 +104,9 @@ func VerifyCleartextStream(in io.Reader, armoredSig string, senderProf *identity
 	if err != nil {
 		return err
 	}
+
+	// DOMAIN SEPARATION
+	hasher.Write([]byte("PQPG-Detached-Signature-v1"))
 
 	// Stream the raw file through the designated hash engine
 	if _, err := io.Copy(hasher.NewWriter(), in); err != nil {

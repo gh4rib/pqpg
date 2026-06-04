@@ -29,19 +29,22 @@ const (
 type SharedMetadata struct {
 	AEADSuite      string   `json:"aead_suite"`
 	Compression    string   `json:"compression"`
+	XOFSuite       string   `json:"xof_suite"`
 	Nonce          []byte   `json:"nonce"`
 	VSSCommitments []string `json:"vss_commitments"` // The Public ECC Points locking the polynomial
 }
 
 // SharedVaultLock generates an Ed25519-based VSS polynomial, encrypts, and returns verified shares.
-func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, compression string, parts, threshold int) ([]string, error) {
+func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, xofSuite, compression string, parts, threshold int) ([]string, error) {	
 	if threshold > parts || threshold < 2 {
 		return nil, errors.New("invalid VSS parameters")
 	}
 
 	registry := crypto.NewRegistry()
 	aead, err := registry.GetAEAD(aeadSuite)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	// Initialize the v4 Edwards25519 Suite
 	suite := edwards25519.NewBlakeSHA256Ed25519()
@@ -55,7 +58,7 @@ func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, compression string,
 
 	// 2. Derive the 32-byte AES/ChaCha Master Key using SHAKE256 KDF
 	secBytes, _ := secretScalar.MarshalBinary()
-	xof, _ := registry.GetXOF("SHAKE256")
+	xof, _ := registry.GetXOF(xofSuite)
 	msgKey := xof.Derive(secBytes, aead.KeySize())
 
 	// 3. Generate Feldman Public Commitments (C_j = a_j * G)
@@ -90,6 +93,7 @@ func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, compression string,
 		AEADSuite:      aeadSuite,
 		Compression:    compression,
 		Nonce:          baseNonce,
+		XOFSuite:       xofSuite,
 		VSSCommitments: commitments, // Bind the public math to the header
 	}
 
@@ -124,16 +128,18 @@ func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, compression string,
 		if n > 0 {
 			if readErr == io.EOF || readErr == io.ErrUnexpectedEOF {
 				padLen := 4096 - (n % 4096)
-				if padLen < 2 { padLen += 4096 }
-				
+				if padLen < 2 {
+					padLen += 4096
+				}
+
 				padBuf := make([]byte, padLen)
 				_, _ = io.ReadFull(rand.Reader, padBuf)
 				binary.LittleEndian.PutUint16(padBuf[padLen-2:], uint16(padLen))
-				
+
 				finalPlaintext := append(buf[:n], padBuf...)
 				chunkNonce := buildChunkNonce(baseNonce, chunkIndex)
 				ciphertext, _ := aead.Seal(msgKey, chunkNonce, finalPlaintext, nil)
-				
+
 				fmt.Fprintf(out, "%s\n", base64.StdEncoding.EncodeToString(ciphertext))
 				break
 			} else {
@@ -149,17 +155,19 @@ func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, compression string,
 			padBuf := make([]byte, padLen)
 			_, _ = io.ReadFull(rand.Reader, padBuf)
 			binary.LittleEndian.PutUint16(padBuf[padLen-2:], uint16(padLen))
-			
+
 			chunkNonce := buildChunkNonce(baseNonce, chunkIndex)
 			ciphertext, _ := aead.Seal(msgKey, chunkNonce, padBuf, nil)
 			fmt.Fprintf(out, "%s\n", base64.StdEncoding.EncodeToString(ciphertext))
 			break
 		}
-		if readErr != nil && readErr != io.ErrUnexpectedEOF { return nil, readErr }
+		if readErr != nil && readErr != io.ErrUnexpectedEOF {
+			return nil, readErr
+		}
 	}
 
 	fmt.Fprintf(out, "%s\n", SharedEndBoundary)
-	return encodedShares, nil 
+	return encodedShares, nil
 }
 
 // SharedVaultUnlock verifies shares against VSS commitments and reconstructs via Lagrange interpolation.
@@ -170,21 +178,29 @@ func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) erro
 	// 1. Parse the Header to extract the VSS Commitments
 	for {
 		line, err := reader.ReadString('\n')
-		if err != nil { return errors.New("invalid file: missing outer boundary") }
-		if strings.TrimSpace(line) == SharedHeaderBoundary { break }
+		if err != nil {
+			return errors.New("invalid file: missing outer boundary")
+		}
+		if strings.TrimSpace(line) == SharedHeaderBoundary {
+			break
+		}
 	}
 
 	metaB64, _ := reader.ReadString('\n')
 	metaBytes, _ := base64.StdEncoding.DecodeString(strings.TrimSpace(metaB64))
 	var metadata SharedMetadata
-	if err := json.Unmarshal(metaBytes, &metadata); err != nil { return err }
+	if err := json.Unmarshal(metaBytes, &metadata); err != nil {
+		return err
+	}
 
 	payloadBoundary, _ := reader.ReadString('\n')
-	if strings.TrimSpace(payloadBoundary) != SharedPayloadBoundary { return errors.New("invalid file structure") }
+	if strings.TrimSpace(payloadBoundary) != SharedPayloadBoundary {
+		return errors.New("invalid file structure")
+	}
 
 	// 2. FELDMAN VERIFICATION
 	suite := edwards25519.NewBlakeSHA256Ed25519()
-	
+
 	var C []kyber.Point
 	for _, cB64 := range metadata.VSSCommitments {
 		b, _ := base64.StdEncoding.DecodeString(cB64)
@@ -198,11 +214,13 @@ func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) erro
 
 	for i, shareStr := range encodedShares {
 		parts := strings.Split(shareStr, ".")
-		if len(parts) != 2 { return fmt.Errorf("CRITICAL: Share %d is structurally invalid", i+1) }
-		
+		if len(parts) != 2 {
+			return fmt.Errorf("CRITICAL: Share %d is structurally invalid", i+1)
+		}
+
 		xInt, _ := strconv.ParseInt(parts[0], 10, 64)
 		x := suite.Scalar().SetInt64(xInt)
-		
+
 		yBytes, _ := base64.StdEncoding.DecodeString(parts[1])
 		y := suite.Scalar()
 		_ = y.UnmarshalBinary(yBytes)
@@ -211,7 +229,7 @@ func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) erro
 		lhs := suite.Point().Mul(y, nil)
 		rhs := suite.Point().Null()
 		xPow := suite.Scalar().SetInt64(1)
-		
+
 		for j := 0; j < len(C); j++ {
 			term := suite.Point().Mul(xPow, C[j])
 			rhs.Add(rhs, term)
@@ -233,7 +251,9 @@ func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) erro
 		den := suite.Scalar().SetInt64(1)
 
 		for j := 0; j < len(xs); j++ {
-			if i == j { continue }
+			if i == j {
+				continue
+			}
 			negXj := suite.Scalar().Neg(xs[j])
 			num.Mul(num, negXj)
 
@@ -248,13 +268,13 @@ func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) erro
 
 	// 4. DECRYPTION PIPELINE (Initialize cipher first)
 	aead, err := registry.GetAEAD(metadata.AEADSuite)
-	if err != nil { 
-		return fmt.Errorf("failed to load cipher suite: %w", err) 
+	if err != nil {
+		return fmt.Errorf("failed to load cipher suite: %w", err)
 	}
 
 	// Derive Master Key
 	secBytes, _ := secret.MarshalBinary()
-	xof, _ := registry.GetXOF("SHAKE256")
+	xof, _ := registry.GetXOF(metadata.XOFSuite)
 	msgKey := xof.Derive(secBytes, aead.KeySize())
 
 	decReader, decWriter := io.Pipe()
@@ -264,29 +284,42 @@ func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) erro
 		defer func() { decWriter.CloseWithError(loopErr) }()
 
 		var chunkIndex uint64 = 0
-		var prevPlaintext []byte 
+		var prevPlaintext []byte
 
 		for {
 			line, err := reader.ReadString('\n')
 			line = strings.TrimSpace(line)
 
 			if line == SharedEndBoundary {
-				if len(prevPlaintext) < 2 { loopErr = errors.New("corrupt padding"); return }
+				if len(prevPlaintext) < 2 {
+					loopErr = errors.New("corrupt padding")
+					return
+				}
 				padLen := binary.LittleEndian.Uint16(prevPlaintext[len(prevPlaintext)-2:])
 				decWriter.Write(prevPlaintext[:len(prevPlaintext)-int(padLen)])
 				break
 			}
-			if line == "" && err == nil { continue }
-			if err != nil { loopErr = errors.New("unexpected EOF"); return }
+			if line == "" && err == nil {
+				continue
+			}
+			if err != nil {
+				loopErr = errors.New("unexpected EOF")
+				return
+			}
 
 			ciphertext, _ := base64.StdEncoding.DecodeString(line)
 			chunkNonce := buildChunkNonce(metadata.Nonce, chunkIndex)
-			
-			plaintext, err := aead.Open(msgKey, chunkNonce, ciphertext, nil)
-			if err != nil { loopErr = errors.New("CRITICAL: Decryption failed. Master Key reconstructed incorrectly"); return }
 
-			if prevPlaintext != nil { decWriter.Write(prevPlaintext) }
-			prevPlaintext = plaintext 
+			plaintext, err := aead.Open(msgKey, chunkNonce, ciphertext, nil)
+			if err != nil {
+				loopErr = errors.New("CRITICAL: Decryption failed. Master Key reconstructed incorrectly")
+				return
+			}
+
+			if prevPlaintext != nil {
+				decWriter.Write(prevPlaintext)
+			}
+			prevPlaintext = plaintext
 			chunkIndex++
 		}
 	}()
