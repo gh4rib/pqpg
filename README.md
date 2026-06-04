@@ -1,4 +1,4 @@
-H# PQPG (Post-Quantum Privacy Guard)
+# PQPG (Post-Quantum Privacy Guard)
 
 By utilizing Cloudflare's `circl` library and EPFL's `kyber` abstract algebra engine, PQPG implements the latest FIPS 203, 204, and 205 post-quantum standards alongside composite hybrid cryptography. It guarantees absolute data confidentiality and metadata anonymity against both traditional and quantum adversaries.
 
