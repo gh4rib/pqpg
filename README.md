@@ -105,7 +105,7 @@ go mod tidy
 3. **Compile the binary:**
 
 ```bash
-go build -o pqpg ./cmd/messenger
+CGO_ENABLED=1 go build -o pqpg ./cmd/messenger
 
 ```
 
