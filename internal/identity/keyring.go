@@ -75,8 +75,7 @@ func (p *Profile) CalculateFingerprint() (string, error) {
 // GenerateIdentity creates a new post-quantum identity, signs the context, and saves it to disk.
 func GenerateIdentity(name, email, comment, kemSuite, dsaSuite, aeadSuite, xofSuite, outDir, passphrase string) error {
 	registry := crypto.NewRegistry()
-	
-	// FIXED: Variable names matched to function signature
+
 	if !registry.ValidateSuite(kemSuite, dsaSuite, aeadSuite, xofSuite) {
 		return fmt.Errorf("invalid or incompatible cryptographic suite parameters")
 	}
@@ -85,20 +84,26 @@ func GenerateIdentity(name, email, comment, kemSuite, dsaSuite, aeadSuite, xofSu
 	if err != nil {
 		return fmt.Errorf("failed to initialize KEM: %w", err)
 	}
-	
-	dsa, err := registry.GetDSA(dsaSuite)
-	if err != nil {
-		return fmt.Errorf("failed to initialize DSA: %w", err)
+
+	// FIX: Safely route to either Stateless or Stateful DSA generation
+	var dsaPub, dsaPriv []byte
+	if dsa, err := registry.GetDSA(dsaSuite); err == nil {
+		dsaPub, dsaPriv, err = dsa.GenerateKeyPair()
+		if err != nil {
+			return fmt.Errorf("stateless DSA generation failed: %w", err)
+		}
+	} else if sdsa, err := registry.GetStatefulDSA(dsaSuite); err == nil {
+		dsaPub, dsaPriv, err = sdsa.GenerateKeyPair()
+		if err != nil {
+			return fmt.Errorf("stateful DSA generation failed: %w", err)
+		}
+	} else {
+		return fmt.Errorf("failed to initialize DSA. Suite %s not found in either registry", dsaSuite)
 	}
 
 	kemPub, kemPriv, err := kem.GenerateKeyPair()
 	if err != nil {
 		return fmt.Errorf("KEM generation failed: %w", err)
-	}
-
-	dsaPub, dsaPriv, err := dsa.GenerateKeyPair()
-	if err != nil {
-		return fmt.Errorf("DSA generation failed: %w", err)
 	}
 
 	profile := Profile{
@@ -113,14 +118,12 @@ func GenerateIdentity(name, email, comment, kemSuite, dsaSuite, aeadSuite, xofSu
 		KEMPubKey: kemPub,
 	}
 
-	// Calculate and bake the fingerprint into the profile before writing to disk
 	fp, err := profile.CalculateFingerprint()
 	if err != nil {
 		return fmt.Errorf("failed to generate fingerprint binding: %w", err)
 	}
 	profile.Fingerprint = fp
 
-	// FIXED: Passed 'profile' instead of undefined 'prof'
 	return saveToDisk(outDir, name, profile, kemPriv, dsaPriv, passphrase)
 }
 

@@ -61,8 +61,34 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	fmt.Println(" 13) ML-KEM + Falcon       [ML-KEM-1024  | Falcon-1024        | AES-GCM  | SHA3-512]")
 	fmt.Println(" 14) Frodo + Falcon        [FrodoKEM-640 | Falcon-1024        | ChaCha20 | SHAKE256]")
 	fmt.Println(" 15) Hybrid X-Wing + Falcon[X-Wing       | Falcon-1024        | AES-GCM  | SHA3-512]")
+	fmt.Println("\n --- STATEFUL HASH-BASED (RELEASE ENGINEER) ---")
+	fmt.Println(" 16) Absolute Max SHA2     [ML-KEM-1024  | XMSSMT-SHA2_60/12_512     | AES-GCM  | SHA3-512]")
+	fmt.Println(" 17) Absolute Max SHAKE    [ML-KEM-1024  | XMSSMT-SHAKE256_60/12_512 | ChaCha20 | SHA3-512]")
+	fmt.Println(" 18) Conservative Lattice  [FrodoKEM-640 | XMSSMT-SHA2_40/8_512      | AES-GCM  | SHAKE256]")
+	fmt.Println(" 19) Pure Sponge L-Free    [FrodoKEM-640 | XMSSMT-SHAKE256_40/8_512  | ChaCha20 | SHAKE256]")
+	fmt.Println(" 20) Hybrid Max SHA2       [X-Wing       | XMSSMT-SHA2_60/6_256      | AES-GCM  | SHA3-512]")
+	fmt.Println(" 21) Hybrid Max SHAKE      [X-Wing       | XMSSMT-SHAKE256_60/6_256  | ChaCha20 | SHA3-512]")
+	fmt.Println(" 22) Single-Tree SHA2      [ML-KEM-1024  | XMSS-SHA2_20_512          | AES-GCM  | SHA3-512]")
+	fmt.Println(" 23) Single-Tree SHAKE     [X-Wing       | XMSS-SHAKE256_20_512      | ChaCha20 | SHA3-512]")
+	fmt.Println("\n --- LEIGHTON-MICALI (LMS) MAXIMUM SECRECY ---")
+	fmt.Println(" 24) Max LMS Compact       [ML-KEM-1024  | LMS_H25_W8                | AES-GCM  | SHA3-512]")
+	fmt.Println(" 25) Max LMS Balanced      [ML-KEM-1024  | LMS_H25_W4                | ChaCha20 | SHA3-512]")
+	fmt.Println(" 26) Frodo LMS Compact     [FrodoKEM-640 | LMS_H25_W8                | AES-GCM  | SHAKE256]")
+	fmt.Println(" 27) Frodo LMS Balanced    [FrodoKEM-640 | LMS_H20_W4                | ChaCha20 | SHAKE256]")
+	fmt.Println(" 28) X-Wing LMS Compact    [X-Wing       | LMS_H25_W8                | AES-GCM  | SHA3-512]")
+	fmt.Println(" 29) X-Wing LMS Balanced   [X-Wing       | LMS_H20_W4                | ChaCha20 | SHA3-512]")
+	fmt.Println(" 30) Fast LMS Compact      [ML-KEM-1024  | LMS_H20_W8                | AES-GCM  | SHA3-512]")
+	fmt.Println(" 31) Fast LMS Balanced     [X-Wing       | LMS_H20_W4                | ChaCha20 | SHA3-512]")
+	fmt.Println(" 32) Max LMS Compact       [ML-KEM-1024  | LMS_H15_W8                | AES-GCM  | SHA3-512]")
+	fmt.Println(" 33) Max LMS Balanced      [ML-KEM-1024  | LMS_H15_W4                | ChaCha20 | SHA3-512]")
+	fmt.Println(" 34) Frodo LMS Compact     [FrodoKEM-640 | LMS_H10_W8                | AES-GCM  | SHAKE256]")
+	fmt.Println(" 35) Frodo LMS Balanced    [FrodoKEM-640 | LMS_H15_W4                | ChaCha20 | SHAKE256]")
+	fmt.Println(" 36) X-Wing LMS Compact    [X-Wing       | LMS_H10_W8                | AES-GCM  | SHA3-512]")
+	fmt.Println(" 37) X-Wing LMS Balanced   [X-Wing       | LMS_H15_W4                | ChaCha20 | SHA3-512]")
+	fmt.Println(" 38) Fast LMS Compact      [ML-KEM-1024  | LMS_H10_W8                | AES-GCM  | SHA3-512]")
+	fmt.Println(" 39) Fast LMS Balanced     [X-Wing       | LMS_H10_W4                | ChaCha20 | SHA3-512]")
 	fmt.Println("=========================================================================================")
-	fmt.Print("Choice [1-15]: ")
+	fmt.Print("Choice [1-39]: ")
 
 	profChoice := readInput(reader)
 
@@ -98,9 +124,80 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "Falcon-1024", "ChaCha20-Poly1305", "SHAKE256"
 	case "15":
 		kem, dsa, aead, xof = "X-Wing", "Falcon-1024", "AES-256-GCM", "SHA3-512"
+	case "16":
+		kem, dsa, aead, xof = "ML-KEM-1024", "XMSSMT-SHA2_60/12_512", "AES-256-GCM", "SHA3-512"
+	case "17":
+		kem, dsa, aead, xof = "ML-KEM-1024", "XMSSMT-SHAKE256_60/12_512", "ChaCha20-Poly1305", "SHA3-512"
+	case "18":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "XMSSMT-SHA2_40/8_512", "AES-256-GCM", "SHAKE256"
+	case "19":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "XMSSMT-SHAKE256_40/8_512", "ChaCha20-Poly1305", "SHAKE256"
+	case "20":
+		kem, dsa, aead, xof = "X-Wing", "XMSSMT-SHA2_60/6_256", "AES-256-GCM", "SHA3-512"
+	case "21":
+		kem, dsa, aead, xof = "X-Wing", "XMSSMT-SHAKE256_60/6_256", "ChaCha20-Poly1305", "SHA3-512"
+	case "22":
+		kem, dsa, aead, xof = "ML-KEM-1024", "XMSS-SHA2_20_512", "AES-256-GCM", "SHA3-512"
+	case "23":
+		kem, dsa, aead, xof = "X-Wing", "XMSS-SHAKE256_20_512", "ChaCha20-Poly1305", "SHA3-512"
+	case "24":
+		kem, dsa, aead, xof = "ML-KEM-1024", "LMS_H25_W8", "AES-256-GCM", "SHA3-512"
+	case "25":
+		kem, dsa, aead, xof = "ML-KEM-1024", "LMS_H25_W4", "ChaCha20-Poly1305", "SHA3-512"
+	case "26":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "LMS_H25_W8", "AES-256-GCM", "SHAKE256"
+	case "27":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "LMS_H20_W4", "ChaCha20-Poly1305", "SHAKE256"
+	case "28":
+		kem, dsa, aead, xof = "X-Wing", "LMS_H25_W8", "AES-256-GCM", "SHA3-512"
+	case "29":
+		kem, dsa, aead, xof = "X-Wing", "LMS_H20_W4", "ChaCha20-Poly1305", "SHA3-512"
+	case "30":
+		kem, dsa, aead, xof = "ML-KEM-1024", "LMS_H20_W8", "AES-256-GCM", "SHA3-512"
+	case "31":
+		kem, dsa, aead, xof = "X-Wing", "LMS_H20_W4", "ChaCha20-Poly1305", "SHA3-512"
+	case "32":
+		kem, dsa, aead, xof = "ML-KEM-1024", "LMS_H15_W8", "AES-256-GCM", "SHA3-512"
+	case "33":
+		kem, dsa, aead, xof = "ML-KEM-1024", "LMS_H15_W4", "ChaCha20-Poly1305", "SHA3-512"
+	case "34":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "LMS_H10_W8", "AES-256-GCM", "SHAKE256"
+	case "35":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "LMS_H15_W4", "ChaCha20-Poly1305", "SHAKE256"
+	case "36":
+		kem, dsa, aead, xof = "X-Wing", "LMS_H10_W8", "AES-256-GCM", "SHA3-512"
+	case "37":
+		kem, dsa, aead, xof = "X-Wing", "LMS_H15_W4", "ChaCha20-Poly1305", "SHA3-512"
+	case "38":
+		kem, dsa, aead, xof = "ML-KEM-1024", "LMS_H10_W8", "AES-256-GCM", "SHA3-512"
+	case "39":
+		kem, dsa, aead, xof = "X-Wing", "LMS_H10_W4", "ChaCha20-Poly1305", "SHA3-512"
 	default:
 		fmt.Println("[-] Invalid choice. Aborting.")
 		return
+	}
+
+	// THE PARANOIA IDENTITY PITCH ---
+	if strings.HasPrefix(dsa, "LMS") || strings.HasPrefix(dsa, "XMSS") {
+		fmt.Println("\n=====================================================================")
+		fmt.Println("             [🛡️] THE PARANOIA IDENTITY PROFILE INITIATED            ")
+		fmt.Println("=====================================================================")
+		fmt.Println(" You are generating a cryptographic profile entirely immune to Lattice-")
+		fmt.Println(" reduction breakthroughs. Your identity relies solely on the proven ")
+		fmt.Println(" mathematical limits of cryptographic hash functions.")
+		fmt.Println("\n [!] ARCHITECTURAL LIMITATIONS CAUTION:")
+		fmt.Println("  - Your OUTBOX is strictly locked to prevent state-exhaustion.")
+		fmt.Println("  - You cannot send standard Ratchet messages (Option 3).")
+		fmt.Println("  - Your INBOX remains open for stateless incoming messages (Option 14).")
+		fmt.Println("  - You are fully equipped to issue 50+ Year Release Signatures.")
+		fmt.Println("=====================================================================")
+
+		fmt.Print("Do you understand these limitations and wish to proceed? (y/n): ")
+		proceed := strings.ToLower(strings.TrimSpace(readInput(reader)))
+		if proceed != "y" && proceed != "yes" {
+			fmt.Println("[-] Identity generation aborted.")
+			return
+		}
 	}
 
 	fmt.Println("[*] Executing mathematical key generation arrays...")

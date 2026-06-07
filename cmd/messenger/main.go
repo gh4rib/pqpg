@@ -37,6 +37,9 @@ func main() {
 		fmt.Println("\n --- CONTACTS & SESSIONS ---")
 		fmt.Println(" 15) Import Contact to Address Book")
 		fmt.Println(" 16) Reset Secure Session (Panic Button)")
+		fmt.Println("\n --- STATEFUL SIGNATURES (RELEASE ENGINEER) ---")
+		fmt.Println(" 17) Sign Release Artifact (Stateful LMS/XMSS)")
+		fmt.Println(" 18) Verify Release Artifact (Stateful LMS/XMSS)")
 		fmt.Println("\n --- SYSTEM ---")
 		fmt.Println(" 99) Exit")
 		fmt.Println("=====================================================================")
@@ -77,6 +80,10 @@ func main() {
 			handleImportContact(reader)
 		case "16":
 			handleResetSession(reader)
+		case "17":
+			handleStatefulDetachedSign(reader)
+		case "18":
+			handleStatefulDetachedVerify(reader)
 		case "99":
 			fmt.Println("[*] Exiting PQPG. Stay secure.")
 			return

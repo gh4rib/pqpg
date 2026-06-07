@@ -25,6 +25,16 @@ func handleSend(reader *bufio.Reader) {
 		return
 	}
 
+	// --- NEW: THE STATEFUL SAFETY BLOCK ---
+	if senderKr.Profile.DSASuite == "LMS-SHA256" || senderKr.Profile.DSASuite == "XMSSMT-SHA2" {
+		fmt.Println("\n[-] CRITICAL ARCHITECTURE HALT: Stateful Keys Cannot Be Streamed.")
+		fmt.Println("    Your identity uses a strict Hash-Based Signature Scheme (LMS/XMSS).")
+		fmt.Println("    To prevent state-reuse and identity corruption, these keys are restricted")
+		fmt.Println("    exclusively to synchronous Detached Signatures (Option 17).")
+		fmt.Println("    Please generate a stateless identity (e.g., ML-DSA or Falcon) for network messaging.")
+		return
+	}
+
 	// Initialize DB early so we can use the Address Book
 	registry := crypto.NewRegistry()
 	xof, err := registry.GetXOF(senderKr.Profile.XOFSuite)
