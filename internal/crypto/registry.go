@@ -34,6 +34,12 @@ func (r *Registry) GetKEM(name string) (KEM, error) {
 }
 
 func (r *Registry) GetDSA(name string) (DSA, error) {
+	// Intercept Falcon requests and route to our custom CGo adapter
+	if name == "Falcon-1024" {
+		return &falconAdapter{}, nil
+	}
+
+	// Fall back to CIRCL for ML-DSA / Dilithium / SLH-DSA
 	return GetDSA(name)
 }
 

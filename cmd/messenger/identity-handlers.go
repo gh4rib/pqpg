@@ -57,8 +57,12 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	fmt.Println(" 10) Hybrid Failsafe       [X-Wing       | SLH-DSA-SHA2-256s  | ChaCha20 | KangarooTwelve]")
 	fmt.Println(" 11) Full Composite Max    [X-Wing       | EdDilithium3       | AES-GCM  | SHA3-512]")
 	fmt.Println(" 12) Paranoia Composite    [X-Wing       | EdDilithium3       | Ascon    | KangarooTwelve]")
+	fmt.Println("\n --- FALCON-1024 (FAST FOURIER LATTICE) ---")
+	fmt.Println(" 13) ML-KEM + Falcon       [ML-KEM-1024  | Falcon-1024        | AES-GCM  | SHA3-512]")
+	fmt.Println(" 14) Frodo + Falcon        [FrodoKEM-640 | Falcon-1024        | ChaCha20 | SHAKE256]")
+	fmt.Println(" 15) Hybrid X-Wing + Falcon[X-Wing       | Falcon-1024        | AES-GCM  | SHA3-512]")
 	fmt.Println("=========================================================================================")
-	fmt.Print("Choice [1-12]: ")
+	fmt.Print("Choice [1-15]: ")
 
 	profChoice := readInput(reader)
 
@@ -88,6 +92,12 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "AES-256-GCM", "SHA3-512"
 	case "12":
 		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "Ascon-128a", "KangarooTwelve"
+	case "13":
+		kem, dsa, aead, xof = "ML-KEM-1024", "Falcon-1024", "AES-256-GCM", "SHA3-512"
+	case "14":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "Falcon-1024", "ChaCha20-Poly1305", "SHAKE256"
+	case "15":
+		kem, dsa, aead, xof = "X-Wing", "Falcon-1024", "AES-256-GCM", "SHA3-512"
 	default:
 		fmt.Println("[-] Invalid choice. Aborting.")
 		return
