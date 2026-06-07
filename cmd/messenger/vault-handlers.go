@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gh4rib/pqpg-cloudflare-circl/internal/identity"
-	"github.com/gh4rib/pqpg-cloudflare-circl/internal/packet"
+	"github.com/gh4rib/pqpg/internal/identity"
+	"github.com/gh4rib/pqpg/internal/packet"
 )
 
 func handleVaultLock(reader *bufio.Reader) {

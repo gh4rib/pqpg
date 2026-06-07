@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gh4rib/pqpg-cloudflare-circl/internal/packet"
+	"github.com/gh4rib/pqpg/internal/packet"
 )
 
 func handleStegoInject(reader *bufio.Reader) {

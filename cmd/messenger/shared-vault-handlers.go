@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gh4rib/pqpg-cloudflare-circl/internal/packet"
+	"github.com/gh4rib/pqpg/internal/packet"
 )
 
 func handleSharedVaultLock(reader *bufio.Reader) {

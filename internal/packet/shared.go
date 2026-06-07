@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gh4rib/pqpg-cloudflare-circl/internal/crypto"
+	"github.com/gh4rib/pqpg/internal/crypto"
 	"github.com/klauspost/compress/zstd"
 
 	"go.dedis.ch/kyber/v4"

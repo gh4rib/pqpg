@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gh4rib/pqpg-cloudflare-circl/internal/identity"
+	"github.com/gh4rib/pqpg/internal/identity"
 )
 
 // ---------------------------------------------------------------------

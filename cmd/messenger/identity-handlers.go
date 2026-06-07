@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gh4rib/pqpg-cloudflare-circl/internal/identity"
+	"github.com/gh4rib/pqpg/internal/identity"
 )
 
 func handleGenerateIdentity(reader *bufio.Reader) {

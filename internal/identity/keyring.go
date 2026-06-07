@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gh4rib/pqpg-cloudflare-circl/internal/crypto"
+	"github.com/gh4rib/pqpg/internal/crypto"
 )
 
 // Profile represents the public-facing identity and routing preferences of a user.

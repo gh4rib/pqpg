@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gh4rib/pqpg-cloudflare-circl/internal/crypto"
+	"github.com/gh4rib/pqpg/internal/crypto"
 	"golang.org/x/crypto/argon2"
 )
 
