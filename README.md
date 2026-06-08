@@ -120,6 +120,8 @@ cd pqpg-cloudflare-circl
 ```bash
 go mod tidy
 
+go mod vendor
+
 ```
 
 3. **Compile the binary:**
