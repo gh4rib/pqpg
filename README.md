@@ -1,7 +1,3 @@
-Here is the updated, comprehensive `README.md` for **PQPG**, fully updated to incorporate the **Zero-Knowledge Data Notary (Proof of Breach)** engine, along with its architecture paths and usage details.
-
----
-
 # PQPG (Post-Quantum Privacy Guard)
 
 By utilizing Cloudflare's `circl` library and EPFL's `kyber` abstract algebra engine, PQPG implements the latest FIPS 203, 204, and 205 post-quantum standards alongside composite hybrid cryptography. It guarantees absolute data confidentiality and metadata anonymity against both traditional and quantum adversaries.
