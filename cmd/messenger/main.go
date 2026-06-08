@@ -43,6 +43,9 @@ func main() {
 		fmt.Println("\n --- Verifiable Delay Function (RSA - Not PQ Safe!) ---")
 		fmt.Println(" 19) Seal a File in a Time-Lock Puzzle (Dead Man's Switch)")
 		fmt.Println(" 20) Verify & Solve a Time-Lock Puzzle")
+		fmt.Println("\n --- Zero-Knowledge Proof of Breach (Data Notary) ---")
+		fmt.Println(" 21) Generate a Zero-Knowledge Proof of Data (Data Notary)")
+		fmt.Println(" 22) Verify a Zero-Knowledge Proof of Data")
 		fmt.Println("\n --- SYSTEM ---")
 		fmt.Println(" 99) Exit")
 		fmt.Println("=====================================================================")
@@ -91,6 +94,10 @@ func main() {
 			handleTimeLockSeal(reader)
 		case "20":
 			handleTimeLockOpen(reader)
+		case "21":
+			handleDataNotaryProve(reader)
+		case "22":
+			handleDataNotaryVerify(reader)
 		case "99":
 			fmt.Println("[*] Exiting PQPG. Stay secure.")
 			return

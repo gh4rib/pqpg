@@ -1,9 +1,7 @@
 package crypto
 
 import (
-	"crypto/rand"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -12,25 +10,18 @@ import (
 	"github.com/gh4rib/pqpg/internal/xmssmt"
 )
 
-// 1. Add the algName field to the struct
 type xmssAdapter struct {
 	algName string
 }
 
-// 2. Return the dynamic name
 func (a *xmssAdapter) Name() string { return a.algName }
 
-// getSecureTempDir creates a collision-proof temporary directory inside the
-// LOCAL working directory to prevent /tmp shared-memory leakage.
+// getSecureTempDir creates a collision-proof temporary directory.
+// Routed to the OS Secure Temp Directory (tmpfs/RAM on Linux)
+// to prevent local directory clutter if the program exits forcefully.
 func getSecureTempDir() (string, error) {
-	b := make([]byte, 16)
-	_, _ = rand.Read(b)
-
-	// FIX: Use the local directory "." instead of os.TempDir()
-	dir := filepath.Join(".", ".pqpg_virtual_xmss_"+hex.EncodeToString(b))
-
-	// 0700 ensures ONLY the user running the CLI can access this folder
-	return dir, os.MkdirAll(dir, 0700)
+	// os.MkdirTemp automatically enforces strict 0700 permissions
+	return os.MkdirTemp("", "pqpg_virtual_xmss_*")
 }
 
 func packState(keyPath string) ([]byte, error) {
@@ -76,11 +67,10 @@ func (a *xmssAdapter) GenerateKeyPair() ([]byte, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(tempDir) // Aggressive cleanup
 
 	keyPath := filepath.Join(tempDir, "key")
 
-	// 3. Dynamically inject the algorithm name from the struct
 	sk, pk, err := xmssmt.GenerateKeyPair(a.algName, keyPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("xmssmt generation failed: %w", err)
@@ -88,9 +78,12 @@ func (a *xmssAdapter) GenerateKeyPair() ([]byte, []byte, error) {
 
 	pubBytes, err := pk.MarshalBinary()
 	if err != nil {
+		sk.Close()
 		return nil, nil, err
 	}
 
+	// Explicitly close the file descriptors BEFORE packing state.
+	// This ensures OS file locks are released so defer RemoveAll succeeds.
 	sk.Close()
 
 	privPacked, err := packState(keyPath)
@@ -101,7 +94,6 @@ func (a *xmssAdapter) GenerateKeyPair() ([]byte, []byte, error) {
 	return pubBytes, privPacked, nil
 }
 
-// ... (Keep Sign and Verify exactly the same as the previous version) ...
 func (a *xmssAdapter) Sign(privKey []byte, message []byte, privDir string) ([]byte, []byte, error) {
 	tempDir, err := getSecureTempDir()
 	if err != nil {
@@ -131,7 +123,9 @@ func (a *xmssAdapter) Sign(privKey []byte, message []byte, privDir string) ([]by
 		return nil, nil, err
 	}
 
+	// Explicit release to prevent OS lock blocking the defer RemoveAll
 	sk.Close()
+
 	newPrivBytes, err := packState(keyPath)
 	if err != nil {
 		return nil, nil, err
@@ -145,7 +139,6 @@ func (a *xmssAdapter) Verify(pubKey []byte, message []byte, signature []byte) bo
 	return err == nil && valid
 }
 
-// ExtractCounter safely unpacks the virtual filesystem, reads the sequence number, and shreds it.
 func (a *xmssAdapter) ExtractCounter(privKey []byte) (uint64, error) {
 	tempDir, err := getSecureTempDir()
 	if err != nil {
@@ -162,8 +155,12 @@ func (a *xmssAdapter) ExtractCounter(privKey []byte) (uint64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to load XMSS container for rollback check: %w", err)
 	}
-	defer sk.Close()
 
-	// sk.SeqNo() returns a SignatureSeqNo (uint64)
-	return uint64(sk.SeqNo()), nil
+	seqNo := uint64(sk.SeqNo())
+
+	// Explicitly close rather than deferring to guarantee file lock release
+	// before defer os.RemoveAll triggers on exit.
+	sk.Close()
+
+	return seqNo, nil
 }
