@@ -19,15 +19,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-const (
-	OuterHeaderBoundary = "-----BEGIN PQC OUTER ENVELOPE-----"
-	InnerHeaderBoundary = "-----BEGIN PQC INNER METADATA-----"
-	PayloadBoundary     = "-----BEGIN PQC PAYLOAD-----"
-	SignatureBoundary   = "-----BEGIN PQC SIGNATURE-----"
-	EndBoundary         = "-----END PQC MESSAGE-----"
-	ChunkSize           = 64 * 1024
-	InnerHeaderSize     = 1024
-)
+
 
 type OuterMetadata struct {
 	MessageID          []byte `json:"message_id"`

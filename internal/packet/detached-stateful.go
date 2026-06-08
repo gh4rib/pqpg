@@ -24,7 +24,7 @@ func SignStatefulCleartextStream(in io.Reader, senderKr *identity.Keyring, hashS
 		return "", err
 	}
 
-	hasher.Write([]byte("PQPG-Stateful-Detached-Signature-v1"))
+	hasher.Write([]byte(DomainStatefulDetached))
 
 	if _, err := io.Copy(hasher.NewWriter(), in); err != nil {
 		return "", fmt.Errorf("file hashing interrupted: %w", err)
@@ -37,7 +37,8 @@ func SignStatefulCleartextStream(in io.Reader, senderKr *identity.Keyring, hashS
 	}
 
 	// Sign returns the NEW serialized private key with the incremented counter
-	sigBytes, newPrivKeyBytes, err := statefulDSA.Sign(senderKr.DSAPrivKey, digest)
+	// (Note: To match our earlier interface upgrade, statefulDSA.Sign takes privDir as the 3rd argument)
+	sigBytes, newPrivKeyBytes, err := statefulDSA.Sign(senderKr.DSAPrivKey, digest, privDir)
 	if err != nil {
 		return "", fmt.Errorf("stateful signing failed (exhausted?): %w", err)
 	}
@@ -56,16 +57,33 @@ func SignStatefulCleartextStream(in io.Reader, senderKr *identity.Keyring, hashS
 	keyPath := filepath.Join(privDir, "private_key.asc")
 	tempPath := keyPath + ".tmp"
 
-	if err := os.WriteFile(tempPath, []byte(armoredPrivateBlock), 0600); err != nil {
+	// HARDWARE-SAFE ATOMIC WRITE
+	f, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return "", fmt.Errorf("CRITICAL ERROR: Failed to create temporary state file: %w", err)
+	}
+
+	if _, err := f.Write([]byte(armoredPrivateBlock)); err != nil {
+		f.Close()
+		os.Remove(tempPath)
 		return "", fmt.Errorf("CRITICAL ERROR: Failed to write new state to disk: %w", err)
 	}
 
-	// Force fsync
-	f, _ := os.Open(tempPath)
-	f.Sync()
-	f.Close()
+	// Force fsync while the file descriptor is actively open for writing
+	if err := f.Sync(); err != nil {
+		f.Close()
+		os.Remove(tempPath)
+		return "", fmt.Errorf("CRITICAL ERROR: Failed to flush hardware cache: %w", err)
+	}
 
+	if err := f.Close(); err != nil {
+		os.Remove(tempPath)
+		return "", fmt.Errorf("CRITICAL ERROR: Failed to cleanly close state file: %w", err)
+	}
+
+	// Atomic OS swap
 	if err := os.Rename(tempPath, keyPath); err != nil {
+		os.Remove(tempPath)
 		return "", fmt.Errorf("CRITICAL ERROR: Failed to finalize state commit: %w", err)
 	}
 
@@ -122,7 +140,7 @@ func VerifyStatefulCleartextStream(in io.Reader, armoredSig string, senderProf *
 		return err
 	}
 
-	hasher.Write([]byte("PQPG-Stateful-Detached-Signature-v1"))
+	hasher.Write([]byte(DomainStatefulDetached))
 
 	if _, err := io.Copy(hasher.NewWriter(), in); err != nil {
 		return fmt.Errorf("file hashing interrupted: %w", err)

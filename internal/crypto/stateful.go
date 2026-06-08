@@ -9,8 +9,12 @@ import (
 type StatefulDSA interface {
 	Name() string
 	GenerateKeyPair() (pub, priv []byte, err error)
-	Sign(privKey, message []byte) (signature, newPrivKey []byte, err error)
+
+	// Added 'privDir string' as the 3rd argument to match the adapters
+	Sign(privKey, message []byte, privDir string) (signature, newPrivKey []byte, err error)
+
 	Verify(pubKey, message, signature []byte) bool
+
 	// Allows the engine to read the internal state counter for Anti-Rollback checks
 	ExtractCounter(privKey []byte) (uint64, error)
 }

@@ -44,7 +44,7 @@ var (
 	ErrSessionNotFound = errors.New("no active cryptographic session with this contact")
 	BucketSessions     = []byte("DoubleRatchetSessions")
 	BucketReplayCache  = []byte("AntiReplayCache")
-	BucketAddressBook  = []byte("AddressBook") // <-- NEW: Post-Quantum Contacts
+	BucketAddressBook  = []byte("AddressBook") // <-- Post-Quantum Contacts
 )
 
 func OpenSessionStore(privateFolderPath string, localMasterKey []byte) (*SessionStore, error) {

@@ -17,11 +17,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-const (
-	VaultHeaderBoundary  = "-----BEGIN PQPG PERSONAL VAULT-----"
-	VaultPayloadBoundary = "-----BEGIN VAULT PAYLOAD-----"
-	VaultEndBoundary     = "-----END PQPG VAULT-----"
-)
+
 
 type VaultMetadata struct {
 	AEADSuite   string `json:"aead_suite"`

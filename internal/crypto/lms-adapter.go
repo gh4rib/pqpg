@@ -75,7 +75,7 @@ func (a *lmsAdapter) GenerateKeyPair() ([]byte, []byte, error) {
 	return pubBytes, privBytes, nil
 }
 
-func (a *lmsAdapter) Sign(privKey []byte, message []byte) ([]byte, []byte, error) {
+func (a *lmsAdapter) Sign(privKey []byte, message []byte, privDir string) ([]byte, []byte, error) {
 	seckey, err := lms.LmsPrivateKeyFromBytes(privKey)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse LMS private key: %w", err)
@@ -108,7 +108,6 @@ func (a *lmsAdapter) Verify(pubKey []byte, message []byte, signature []byte) boo
 
 	return pubkey.Verify(message, sig)
 }
-
 
 // ExtractCounter safely reads the internal 'q' sequence number from the LMS private key.
 func (a *lmsAdapter) ExtractCounter(privKey []byte) (uint64, error) {

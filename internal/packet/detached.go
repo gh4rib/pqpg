@@ -13,10 +13,6 @@ import (
 	"github.com/gh4rib/pqpg/internal/identity"
 )
 
-const (
-	DetachedHeader = "-----BEGIN PQC DETACHED SIGNATURE-----"
-	DetachedFooter = "-----END PQC DETACHED SIGNATURE-----"
-)
 
 type DetachedSignature struct {
 	SenderName string `json:"sender_name"`

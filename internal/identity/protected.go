@@ -12,10 +12,7 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-const (
-	ArmorHeader = "-----BEGIN PQPG PROTECTED PRIVATE KEY-----"
-	ArmorFooter = "-----END PQPG PROTECTED PRIVATE KEY-----"
-)
+
 
 // PlaintextKeyBundle represents the unencrypted cluster of private assets
 type PlaintextKeyBundle struct {

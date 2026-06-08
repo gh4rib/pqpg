@@ -102,7 +102,7 @@ func (a *xmssAdapter) GenerateKeyPair() ([]byte, []byte, error) {
 }
 
 // ... (Keep Sign and Verify exactly the same as the previous version) ...
-func (a *xmssAdapter) Sign(privKey []byte, message []byte) ([]byte, []byte, error) {
+func (a *xmssAdapter) Sign(privKey []byte, message []byte, privDir string) ([]byte, []byte, error) {
 	tempDir, err := getSecureTempDir()
 	if err != nil {
 		return nil, nil, err

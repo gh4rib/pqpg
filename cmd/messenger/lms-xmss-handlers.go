@@ -24,6 +24,25 @@ func handleStatefulDetachedSign(reader *bufio.Reader) {
 		return
 	}
 
+	// =====================================================================
+	// FEATURE 4: CRYPTOGRAPHIC MEMORY HYGIENE
+	// Guarantee that sensitive private key material is shredded from RAM
+	// the exact moment this function finishes or errors out.
+	// =====================================================================
+	defer func() {
+		if senderKr != nil {
+			// Zero out the DSA private key (LMS/XMSS)
+			for i := range senderKr.DSAPrivKey {
+				senderKr.DSAPrivKey[i] = 0
+			}
+			// Zero out the KEM private key (Kyber/Frodo)
+			for i := range senderKr.KEMPrivKey {
+				senderKr.KEMPrivKey[i] = 0
+			}
+		}
+	}()
+	// =====================================================================
+
 	// --- DYNAMIC STATEFUL DETECTION ---
 	var ext string
 	var algoName string
@@ -53,7 +72,6 @@ func handleStatefulDetachedSign(reader *bufio.Reader) {
 	}
 
 	// 2. Check the Canary file to ensure it hasn't gone backwards
-	// FIX: Added 'passphrase' as the third argument
 	err = identity.VerifyAndCommitCounter(senderKr.Profile.Fingerprint, currentCounter, passphrase, privPath)
 	if err != nil {
 		fmt.Printf("\n[☠️] %v\n", err)
@@ -87,7 +105,6 @@ func handleStatefulDetachedSign(reader *bufio.Reader) {
 	// COMMIT NEW STATE TO CANARY
 	// =====================================================================
 	newCounter, _ := statefulDSA.ExtractCounter(senderKr.DSAPrivKey)
-	// Added 'passphrase' as the third argument
 	_ = identity.VerifyAndCommitCounter(senderKr.Profile.Fingerprint, newCounter, passphrase, privPath)
 	// =====================================================================
 

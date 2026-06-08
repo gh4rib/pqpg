@@ -20,11 +20,7 @@ import (
 	"go.dedis.ch/kyber/v4/group/edwards25519"
 )
 
-const (
-	SharedHeaderBoundary  = "-----BEGIN SHARED VAULT HEADER-----"
-	SharedPayloadBoundary = "-----BEGIN SHARED VAULT PAYLOAD-----"
-	SharedEndBoundary     = "-----END SHARED VAULT-----"
-)
+
 
 type SharedMetadata struct {
 	AEADSuite      string   `json:"aead_suite"`

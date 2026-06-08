@@ -7,10 +7,6 @@ import (
 	"io"
 )
 
-const (
-	DomainRootRatchet  = "PQPG-DoubleRatchet-Root-v1"
-	DomainChainRatchet = "PQPG-DoubleRatchet-Chain-v1"
-)
 
 // ratchetKDF dynamically uses the negotiated XOF to extract exactly 64 bytes (512 bits) of key material.
 func ratchetKDF(xofSuite, domain string, key, data []byte) (out1, out2 []byte) {
