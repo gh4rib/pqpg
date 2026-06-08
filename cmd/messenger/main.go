@@ -40,6 +40,9 @@ func main() {
 		fmt.Println("\n --- STATEFUL SIGNATURES (RELEASE ENGINEER) ---")
 		fmt.Println(" 17) Sign Release Artifact (Stateful LMS/XMSS)")
 		fmt.Println(" 18) Verify Release Artifact (Stateful LMS/XMSS)")
+		fmt.Println("\n --- Verifiable Delay Function (RSA - Not PQ Safe!) ---")
+		fmt.Println(" 19) Seal a File in a Time-Lock Puzzle (Dead Man's Switch)")
+		fmt.Println(" 20) Verify & Solve a Time-Lock Puzzle")
 		fmt.Println("\n --- SYSTEM ---")
 		fmt.Println(" 99) Exit")
 		fmt.Println("=====================================================================")
@@ -84,6 +87,10 @@ func main() {
 			handleStatefulDetachedSign(reader)
 		case "18":
 			handleStatefulDetachedVerify(reader)
+		case "19":
+			handleTimeLockSeal(reader)
+		case "20":
+			handleTimeLockOpen(reader)
 		case "99":
 			fmt.Println("[*] Exiting PQPG. Stay secure.")
 			return
