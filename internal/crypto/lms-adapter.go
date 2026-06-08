@@ -108,3 +108,14 @@ func (a *lmsAdapter) Verify(pubKey []byte, message []byte, signature []byte) boo
 
 	return pubkey.Verify(message, sig)
 }
+
+
+// ExtractCounter safely reads the internal 'q' sequence number from the LMS private key.
+func (a *lmsAdapter) ExtractCounter(privKey []byte) (uint64, error) {
+	seckey, err := lms.LmsPrivateKeyFromBytes(privKey)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse LMS private key for rollback check: %w", err)
+	}
+	// seckey.Q() returns a uint32, we cast it to uint64 for interface uniformity
+	return uint64(seckey.Q()), nil
+}

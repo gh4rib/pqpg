@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gh4rib/pqpg/internal/crypto"
 	"github.com/gh4rib/pqpg/internal/identity"
 	"github.com/gh4rib/pqpg/internal/packet"
 )
@@ -38,6 +39,28 @@ func handleStatefulDetachedSign(reader *bufio.Reader) {
 		return
 	}
 
+	// =====================================================================
+	// FEATURE 3: HARDWARE-STYLE ANTI-ROLLBACK PROTECTION
+	// =====================================================================
+	registry := crypto.NewRegistry()
+	statefulDSA, _ := registry.GetStatefulDSA(senderKr.Profile.DSASuite)
+
+	// 1. Read the counter currently sitting in the AES-GCM vault
+	currentCounter, err := statefulDSA.ExtractCounter(senderKr.DSAPrivKey)
+	if err != nil {
+		fmt.Printf("[-] Failed to read internal state counter: %v\n", err)
+		return
+	}
+
+	// 2. Check the Canary file to ensure it hasn't gone backwards
+	// FIX: Added 'passphrase' as the third argument
+	err = identity.VerifyAndCommitCounter(senderKr.Profile.Fingerprint, currentCounter, passphrase, privPath)
+	if err != nil {
+		fmt.Printf("\n[☠️] %v\n", err)
+		return
+	}
+	// =====================================================================
+
 	fmt.Print("Enter path to the release artifact to sign (e.g., ubuntu.iso): ")
 	filePath := readInput(reader)
 
@@ -48,25 +71,31 @@ func handleStatefulDetachedSign(reader *bufio.Reader) {
 	}
 	defer inFile.Close()
 
-	// Automatically pull the hash suite from the user's identity profile
 	hashAlgo := senderKr.Profile.XOFSuite
 
 	fmt.Printf("\n[*] Identity Profile enforces %s for payload hashing.\n", hashAlgo)
 	fmt.Printf("[*] Streaming file into %s engine...\n", hashAlgo)
 	fmt.Printf("[!] WARNING: Performing Synchronous %s Key Overwrite...\n", algoName)
 
-	// FIX: Removed the duplicated block here. Just one clean call to the engine.
 	armoredSig, err := packet.SignStatefulCleartextStream(inFile, senderKr, hashAlgo, passphrase, privPath)
 	if err != nil {
 		fmt.Printf("[-] Stateful Signing failed: %v\n", err)
 		return
 	}
 
+	// =====================================================================
+	// COMMIT NEW STATE TO CANARY
+	// =====================================================================
+	newCounter, _ := statefulDSA.ExtractCounter(senderKr.DSAPrivKey)
+	// Added 'passphrase' as the third argument
+	_ = identity.VerifyAndCommitCounter(senderKr.Profile.Fingerprint, newCounter, passphrase, privPath)
+	// =====================================================================
+
 	outboxName := filePath + ext
 	_ = os.WriteFile(outboxName, []byte(armoredSig), 0644)
 
 	fmt.Printf("\n[+] SUCCESS! Artifact signed using %s.\n", algoName)
-	fmt.Printf("[+] Internal counter successfully committed to disk.\n")
+	fmt.Printf("[+] Internal counter successfully committed to disk and Anti-Rollback Guard.\n")
 	fmt.Printf("[+] Signature saved to: %s\n", outboxName)
 }
 
@@ -111,6 +140,10 @@ func handleStatefulDetachedVerify(reader *bufio.Reader) {
 		return
 	}
 
+	// --- UX SYMMETRY: Extract and display the enforced Hash Suite ---
+	hashAlgo := senderProf.XOFSuite
+
+	fmt.Printf("\n[*] Identity Profile enforces %s for payload hashing.\n", hashAlgo)
 	fmt.Printf("[*] Streaming raw file into %s verification engine...\n", algoName)
 
 	err = packet.VerifyStatefulCleartextStream(inFile, string(sigBytes), senderProf)

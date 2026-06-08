@@ -11,6 +11,8 @@ type StatefulDSA interface {
 	GenerateKeyPair() (pub, priv []byte, err error)
 	Sign(privKey, message []byte) (signature, newPrivKey []byte, err error)
 	Verify(pubKey, message, signature []byte) bool
+	// Allows the engine to read the internal state counter for Anti-Rollback checks
+	ExtractCounter(privKey []byte) (uint64, error)
 }
 
 // GetStatefulDSA routes to algorithms requiring synchronous counter updates.
