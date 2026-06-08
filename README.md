@@ -1,8 +1,12 @@
+Here is the updated, comprehensive `README.md` for **PQPG**, fully updated to incorporate the **Zero-Knowledge Data Notary (Proof of Breach)** engine, along with its architecture paths and usage details.
+
+---
+
 # PQPG (Post-Quantum Privacy Guard)
 
 By utilizing Cloudflare's `circl` library and EPFL's `kyber` abstract algebra engine, PQPG implements the latest FIPS 203, 204, and 205 post-quantum standards alongside composite hybrid cryptography. It guarantees absolute data confidentiality and metadata anonymity against both traditional and quantum adversaries.
 
-PQPG operates as an **Asynchronous Secure Messenger (Sealed Sender Transport Layer)**, a **Personal Post-Quantum Vault**, a **Trustless Distributed Vault (Feldman VSS)**, and a **Zero-Knowledge Time-Lock Engine**, allowing users to wrap local files and networks inside an impenetrable quantum-resistant armor.
+PQPG operates as an **Asynchronous Secure Messenger (Sealed Sender Transport Layer)**, a **Personal Post-Quantum Vault**, a **Trustless Distributed Vault (Feldman VSS)**, a **Zero-Knowledge Time-Lock Engine**, and a **Zero-Knowledge Data Notary (Proof of Breach)**, allowing users to wrap local files and networks inside an impenetrable quantum-resistant armor.
 
 ---
 
@@ -11,6 +15,8 @@ PQPG operates as an **Asynchronous Secure Messenger (Sealed Sender Transport Lay
 * **Hybrid Cryptography & Crypto-Agility:** Natively supports composite algorithms like `X-Wing` (X25519 + ML-KEM-768) and `EdDilithium`. Every database and network protocol dynamically inherits the user's chosen Keccak (XOF) and AEAD suite, eliminating hardcoded downgrade vulnerabilities.
 * **Stateful Post-Quantum Root Identities (LMS/XMSS):** Fully supports FIPS 205 Hash-Based Signatures for highly secure, failsafe software release engineering.
 * **Hardware-Safe Anti-Rollback Canaries:** Defeats catastrophic state-reuse attacks in LMS/XMSS using POSIX-compliant, hardware-level atomic file swaps and AES-GCM protected canaries, ensuring state integrity even during sudden power-loss events.
+* **Zero-Knowledge Data Notary (Proof of Breach):** Proves possession of massive datasets (e.g., leaked or compromised data) without revealing a single byte of the file itself. Employs a native **Groth16 zk-SNARK** over the **BN254** elliptic curve using a custom **MiMC Merkle Tree** pipeline.
+* **Hardened Circuit Defenses:** Integrates strict domain separation for empty leaf padding (`PQPG-EMPTY-MERKLE-PAD`) to prevent length-extension collisions and mandates a minimum tree depth of 4. Protects verifiers against malicious "Rogue Setup" attacks by calculating and enforcing a **SHA3-256 fingerprint** verification step on the circuit's Verifying Key.
 * **Zero-Knowledge Time-Lock Puzzles (VDF):** Encapsulates files inside an RSA-4096 Hidden Order Group. Uses a native Fiat-Shamir Zero-Knowledge Proof (Sigma Protocol) to mathematically guarantee puzzle validity, forcing sequential CPU delays (Dead Man's Switch) without exposing solvers to forged puzzles.
 * **Cryptographic Memory Hygiene & Rainbow Table Immunity:** Secures local keyrings using dynamic Argon2id salt rotation to neutralize pre-computed Rainbow Tables. Guarantees that all highly sensitive private key byte-slices are explicitly shredded from RAM immediately after cryptographic operations conclude.
 * **Sealed Sender & Receiver Anonymity:** Uses a Dual-Layer envelope padded to strict 1KB boundaries. Drops plaintext public keys and routes via **32-byte Keccak Key Hints**, meaning a network eavesdropper cannot mathematically identify the receiver.
@@ -42,6 +48,7 @@ PQPG manages Perfect Forward Secrecy and Post-Compromise Security using a highly
 | **Stateful DSA (FIPS 205)** | `LMS_H5` -> `LMS_H25`, `XMSS`, `XMSSMT` |
 | **AEAD (Symmetric Ciphers)** | `AES-256-GCM`, `ChaCha20-Poly1305`, `Ascon-128`, `Ascon-128a` |
 | **XOF / Hashing** | `SHAKE128`, `SHAKE256`, `SHA3-256/384/512`, `SHA-512`, `KangarooTwelve` |
+| **Zero-Knowledge Primitives** | `Groth16` (zk-SNARK), `BN254` Pairing-Friendly Curve, `MiMC` (Sponge-Hash) |
 
 ---
 
@@ -54,6 +61,7 @@ pqc-messenger/
 ├── cmd/
 │   └── messenger/
 │       ├── main.go
+│       ├── notary-handlers.go    # CLI orchestration for ZK Data Notary (Prove/Verify)
 │       └── *-handlers.go
 ├── internal/
 │   ├── crypto/
@@ -75,6 +83,9 @@ pqc-messenger/
 │   ├── vdf/
 │   │   ├── engine.go             # Abstract interfaces for Verifiable Delay Functions
 │   │   └── rsa_vdf.go            # Native RSA Subgroup math & Fiat-Shamir ZKP
+│   ├── zkp/
+│   │   ├── circuit.go            # Gnark R1CS Merkle Inclusion Proof Circuit
+│   │   └── engine.go             # Groth16 Setup, Prove, and Verify mathematical interface
 │   └── packet/
 │       ├── constants.go          # Centralized Domain Separation Tags & Magic Strings
 │       ├── detached.go           # High-speed streaming Cleartext Signatures
@@ -96,7 +107,7 @@ pqc-messenger/
 ### Prerequisites
 
 * **Go 1.25.10** or higher.
-* Active internet connection to fetch Cloudflare `circl` and EPFL `kyber/v4`.
+* Active internet connection to fetch Cloudflare `circl`, EPFL `kyber/v4`, and ConsenSys `gnark`.
 
 ### Step-by-Step Build
 
@@ -164,6 +175,10 @@ Select **Option 13** to mathematically weave a `.asc` or `.pq_vault` payload int
 
 Select **Option 15** to encrypt a file utilizing a single ephemeral KEM exchange without initializing the BoltDB state machine. Ideal for cold-storage backups. Select **Option 16** to extract a stateless payload.
 
+### 17 & 18. Zero-Knowledge Data Notary (Proof of Breach)
+
+Select **Option 17** to act as a Prover and generate a zk-SNARK proving possession of a targeted leak file or database. The engine processes the local file chunk-by-chunk inside a field-compliant MiMC Merkle tree, evaluates it against a targeted public root, and exports a standalone `.zkp` proof envelope containing the serialized cryptographic proofs and the verifying parameters. Select **Option 18** to act as an Auditor and verify a standalone proof. The verifier parses the proof envelope, extracts the circuit's verifying key, calculates its **SHA3-256 fingerprint** for human confirmation, and strictly checks the R1CS constraints to assert proof validity.
+
 ---
 
 ## Acknowledgements & Upstream Projects
@@ -173,6 +188,9 @@ The core cryptographic mathematics of PQPG are powered by CIRCL (Cloudflare Inte
 
 **EPFL Advanced Cryptography Group (Kyber)**
 Threshold cryptography and Feldman VSS operations rely on the `go.dedis.ch/kyber` abstract algebra suite, providing the vital Elliptic Curve scalar math required for Zero-Knowledge and verifiable group commitments.
+
+**ConsenSys gnark**
+The zero-knowledge SNARK ecosystem, circuit compilation, and R1CS Groth16 proving/verifying mechanisms are powered entirely by the high-performance `gnark` framework.
 
 ---
 
@@ -189,4 +207,6 @@ Faz-Hernandez, A. and Kwiatkowski, K. (2019). *Introducing CIRCL: An Advanced Cr
 > 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
 > 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
 > 
->
+> 
+
+---
