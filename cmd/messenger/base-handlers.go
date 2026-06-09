@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gh4rib/pqpg/internal/crypto"
@@ -154,7 +155,25 @@ func handleReceive(reader *bufio.Reader) {
 	}
 	defer inFile.Close()
 
-	outFilename := fmt.Sprintf("decrypted_msg_%s.txt", time.Now().Format("20060102_150405"))
+	// --- NEW: INTELLIGENT FILENAME EXTRACTION ---
+	// Grab the base name (e.g., "outbox_Antigravity_IDE.tar.gz.asc")
+	baseName := filepath.Base(ascPath)
+
+	// Strip the ".asc" armor extension
+	cleanName := strings.TrimSuffix(baseName, ".asc")
+
+	// Strip the "outbox_" prefix applied by the sender
+	cleanName = strings.TrimPrefix(cleanName, "outbox_")
+
+	// Fallback just in case the extraction yields an empty string
+	if cleanName == "" {
+		cleanName = fmt.Sprintf("payload_%s.bin", time.Now().Format("150405"))
+	}
+
+	// Prepend "inbox_" so we don't accidentally overwrite a local file with the same name
+	outFilename := fmt.Sprintf("inbox_%s", cleanName)
+	// --------------------------------------------
+
 	outFile, err := os.Create(outFilename)
 	if err != nil {
 		fmt.Printf("[-] Failed to allocate output file: %v\n", err)
@@ -171,8 +190,8 @@ func handleReceive(reader *bufio.Reader) {
 		return
 	}
 
-	fmt.Printf("[+] VERIFICATION SUCCESSFUL. Mathematical identity proven.\n")
-	fmt.Printf("[+] Decrypted file saved to: %s\n", outFilename)
+	fmt.Printf("\n[+] VERIFICATION SUCCESSFUL. Mathematical identity proven.\n")
+	fmt.Printf("[+] Decrypted file natively restored to: %s\n", outFilename)
 }
 
 func handleImportContact(reader *bufio.Reader) {
