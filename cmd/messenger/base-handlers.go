@@ -11,6 +11,7 @@ import (
 	"github.com/gh4rib/pqpg/internal/crypto"
 	"github.com/gh4rib/pqpg/internal/identity"
 	"github.com/gh4rib/pqpg/internal/packet"
+	"github.com/gh4rib/pqpg/internal/phantom"
 )
 
 func handleSend(reader *bufio.Reader) {
@@ -20,13 +21,32 @@ func handleSend(reader *bufio.Reader) {
 	fmt.Print("Enter Passphrase to unlock your private key: ")
 	passphrase := readInput(reader)
 
-	senderKr, err := identity.LoadKeyring(privPath, passphrase)
+	// =========================================================================
+	// THE PHANTOM PIPELINE INITIATION
+	// =========================================================================
+	fmt.Println("\n[*] Negotiating ephemeral tmpfs mount with OS Kernel...")
+	workspace, err := phantom.NewWorkspace()
+	if err != nil {
+		fmt.Printf("[-] Phantom Architecture initialization failed: %v\n", err)
+		return
+	}
+	defer workspace.Destroy() // Guarantees RAM shredding on exit/panic
+
+	fmt.Println("[*] Unpacking cryptographic identity directly into volatile memory...")
+	err = phantom.UnlockVaultToRAM(privPath, workspace.MountPoint)
+	if err != nil {
+		fmt.Printf("[-] Failed to bridge vault to RAM: %v\n", err)
+		return
+	}
+
+	// LOAD KEYS FROM RAM
+	senderKr, err := identity.LoadKeyring(workspace.MountPoint, passphrase)
 	if err != nil {
 		fmt.Printf("[-] Access Denied: %v\n", err)
 		return
 	}
+	// =========================================================================
 
-	// --- NEW: THE STATEFUL SAFETY BLOCK ---
 	if senderKr.Profile.DSASuite == "LMS-SHA256" || senderKr.Profile.DSASuite == "XMSSMT-SHA2" {
 		fmt.Println("\n[-] CRITICAL ARCHITECTURE HALT: Stateful Keys Cannot Be Streamed.")
 		fmt.Println("    Your identity uses a strict Hash-Based Signature Scheme (LMS/XMSS).")
@@ -36,7 +56,6 @@ func handleSend(reader *bufio.Reader) {
 		return
 	}
 
-	// Initialize DB early so we can use the Address Book
 	registry := crypto.NewRegistry()
 	xof, err := registry.GetXOF(senderKr.Profile.XOFSuite)
 	if err != nil {
@@ -47,26 +66,31 @@ func handleSend(reader *bufio.Reader) {
 	xof.Write(senderKr.KEMPrivKey)
 	sessionKey := xof.Derive(nil, 32)
 
-	sessionStore, err := identity.OpenSessionStore(privPath, sessionKey)
+	// LOAD DATABASE FROM RAM
+	sessionStore, err := identity.OpenSessionStore(workspace.MountPoint, sessionKey)
 	if err != nil {
 		fmt.Printf("[-] Failed to initialize offline Double Ratchet database: %v\n", err)
 		return
 	}
-	defer sessionStore.Close()
 
 	fmt.Println("\n[*] Select the RECIPIENT:")
 	receiverProf, err := selectContact(reader, sessionStore, "RECIPIENT")
 	if err != nil {
 		fmt.Printf("[-] Failed to load recipient profile: %v\n", err)
+		sessionStore.Close()
 		return
 	}
 
-	fmt.Print("\nEnter path to the file you want to send: ")
+	// =========================================================================
+	// THE DATA PLANE (Persists on SSD)
+	// =========================================================================
+	fmt.Print("\nEnter path to the massive file you want to send (e.g., ubuntu.iso): ")
 	filePath := readInput(reader)
 
 	inFile, err := os.Open(filePath)
 	if err != nil {
 		fmt.Printf("[-] Failed to open target file for streaming: %v\n", err)
+		sessionStore.Close()
 		return
 	}
 	defer inFile.Close()
@@ -90,21 +114,38 @@ func handleSend(reader *bufio.Reader) {
 
 	baseFilename := filepath.Base(filePath)
 	outboxName := fmt.Sprintf("outbox_%s.asc", baseFilename)
+
 	outFile, err := os.Create(outboxName)
 	if err != nil {
 		fmt.Printf("[-] Failed to create outbox stream: %v\n", err)
+		sessionStore.Close()
 		return
 	}
 	defer outFile.Close()
 
 	fmt.Println("[*] Sealing Post-Quantum Streaming Envelope & Advancing Ratchets...")
 	err = packet.StreamSeal(inFile, outFile, sessionStore, senderKr, receiverProf, compression)
+
+	// Explicitly release BoltDB lock so we can safely copy it
+	sessionStore.Close()
+
 	if err != nil {
 		fmt.Printf("[-] Encryption interrupted: %v\n", err)
 		return
 	}
 
+	// =========================================================================
+	// STATE SYNCHRONIZATION
+	// =========================================================================
+	fmt.Println("[*] Synchronizing advanced Double Ratchet state to persistent storage...")
+	err = phantom.LockRAMToVault(workspace.MountPoint, privPath)
+	if err != nil {
+		fmt.Printf("[-] Warning: Failed to sync database back to SSD: %v\n", err)
+		return
+	}
+
 	fmt.Printf("\n[+] SUCCESS! File encrypted in chunks, signed, and saved to '%s'\n", outboxName)
+	fmt.Println("[+] Phantom Workspace shredded and unmounted successfully.")
 }
 
 func handleReceive(reader *bufio.Reader) {
@@ -114,13 +155,32 @@ func handleReceive(reader *bufio.Reader) {
 	fmt.Print("Enter Passphrase to unlock your private key: ")
 	passphrase := readInput(reader)
 
-	receiverKr, err := identity.LoadKeyring(privPath, passphrase)
+	// =========================================================================
+	// THE PHANTOM PIPELINE INITIATION
+	// =========================================================================
+	fmt.Println("\n[*] Negotiating ephemeral tmpfs mount with OS Kernel...")
+	workspace, err := phantom.NewWorkspace()
+	if err != nil {
+		fmt.Printf("[-] Phantom Architecture initialization failed: %v\n", err)
+		return
+	}
+	defer workspace.Destroy()
+
+	fmt.Println("[*] Unpacking cryptographic identity directly into volatile memory...")
+	err = phantom.UnlockVaultToRAM(privPath, workspace.MountPoint)
+	if err != nil {
+		fmt.Printf("[-] Failed to bridge vault to RAM: %v\n", err)
+		return
+	}
+
+	// LOAD KEYS FROM RAM
+	receiverKr, err := identity.LoadKeyring(workspace.MountPoint, passphrase)
 	if err != nil {
 		fmt.Printf("[-] Access Denied: %v\n", err)
 		return
 	}
+	// =========================================================================
 
-	// Initialize DB early so we can use the Address Book
 	registry := crypto.NewRegistry()
 	xof, err := registry.GetXOF(receiverKr.Profile.XOFSuite)
 	if err != nil {
@@ -131,52 +191,48 @@ func handleReceive(reader *bufio.Reader) {
 	xof.Write(receiverKr.KEMPrivKey)
 	sessionKey := xof.Derive(nil, 32)
 
-	sessionStore, err := identity.OpenSessionStore(privPath, sessionKey)
+	// LOAD DATABASE FROM RAM
+	sessionStore, err := identity.OpenSessionStore(workspace.MountPoint, sessionKey)
 	if err != nil {
 		fmt.Printf("[-] Failed to initialize offline Double Ratchet database: %v\n", err)
 		return
 	}
-	defer sessionStore.Close()
 
 	fmt.Println("\n[*] Select the SENDER:")
 	senderProf, err := selectContact(reader, sessionStore, "SENDER")
 	if err != nil {
 		fmt.Printf("[-] Failed to load sender profile: %v\n", err)
+		sessionStore.Close()
 		return
 	}
 
+	// =========================================================================
+	// THE DATA PLANE (Persists on SSD)
+	// =========================================================================
 	fmt.Print("\nEnter path to the armored packet file (e.g., outbox_msg.asc): ")
 	ascPath := readInput(reader)
 
 	inFile, err := os.Open(ascPath)
 	if err != nil {
 		fmt.Printf("[-] Failed to open incoming stream: %v\n", err)
+		sessionStore.Close()
 		return
 	}
 	defer inFile.Close()
 
-	// --- NEW: INTELLIGENT FILENAME EXTRACTION ---
-	// Grab the base name (e.g., "outbox_Antigravity_IDE.tar.gz.asc")
+	// Intelligent Filename Extraction
 	baseName := filepath.Base(ascPath)
-
-	// Strip the ".asc" armor extension
 	cleanName := strings.TrimSuffix(baseName, ".asc")
-
-	// Strip the "outbox_" prefix applied by the sender
 	cleanName = strings.TrimPrefix(cleanName, "outbox_")
-
-	// Fallback just in case the extraction yields an empty string
 	if cleanName == "" {
 		cleanName = fmt.Sprintf("payload_%s.bin", time.Now().Format("150405"))
 	}
-
-	// Prepend "inbox_" so we don't accidentally overwrite a local file with the same name
 	outFilename := fmt.Sprintf("inbox_%s", cleanName)
-	// --------------------------------------------
 
 	outFile, err := os.Create(outFilename)
 	if err != nil {
 		fmt.Printf("[-] Failed to allocate output file: %v\n", err)
+		sessionStore.Close()
 		return
 	}
 
@@ -184,14 +240,30 @@ func handleReceive(reader *bufio.Reader) {
 	err = packet.StreamOpen(inFile, outFile, sessionStore, receiverKr, senderProf)
 	outFile.Close()
 
+	// Explicitly release the BoltDB file lock in the RAM disk
+	sessionStore.Close()
+
 	if err != nil {
+		// ATOMIC ROLLBACK
 		os.Remove(outFilename)
 		fmt.Printf("[-] CRITICAL: Verification or Decryption failed. File Purged. Reason: %v\n", err)
+		fmt.Println("[-] Phantom RAM-disk discarded. Persistent state rollback successful.")
+		return
+	}
+
+	// =========================================================================
+	// STATE SYNCHRONIZATION (Only executes if decryption was 100% successful)
+	// =========================================================================
+	fmt.Println("[*] Verification Complete. Synchronizing advanced Double Ratchet state to persistent storage...")
+	err = phantom.LockRAMToVault(workspace.MountPoint, privPath)
+	if err != nil {
+		fmt.Printf("[-] Warning: Failed to sync database back to SSD: %v\n", err)
 		return
 	}
 
 	fmt.Printf("\n[+] VERIFICATION SUCCESSFUL. Mathematical identity proven.\n")
 	fmt.Printf("[+] Decrypted file natively restored to: %s\n", outFilename)
+	fmt.Println("[+] Phantom Workspace shredded and unmounted successfully.")
 }
 
 func handleImportContact(reader *bufio.Reader) {
@@ -201,7 +273,23 @@ func handleImportContact(reader *bufio.Reader) {
 	fmt.Print("Enter Passphrase to unlock your private database: ")
 	passphrase := readInput(reader)
 
-	myKr, err := identity.LoadKeyring(privPath, passphrase)
+	// --- PHANTOM PIPELINE ---
+	fmt.Println("\n[*] Negotiating ephemeral tmpfs mount with OS Kernel...")
+	workspace, err := phantom.NewWorkspace()
+	if err != nil {
+		fmt.Printf("[-] Phantom Architecture initialization failed: %v\n", err)
+		return
+	}
+	defer workspace.Destroy()
+
+	fmt.Println("[*] Unpacking cryptographic identity directly into volatile memory...")
+	err = phantom.UnlockVaultToRAM(privPath, workspace.MountPoint)
+	if err != nil {
+		fmt.Printf("[-] Failed to bridge vault to RAM: %v\n", err)
+		return
+	}
+
+	myKr, err := identity.LoadKeyring(workspace.MountPoint, passphrase)
 	if err != nil {
 		fmt.Printf("[-] Access Denied: %v\n", err)
 		return
@@ -222,16 +310,27 @@ func handleImportContact(reader *bufio.Reader) {
 	xof.Write(myKr.KEMPrivKey)
 	sessionKey := xof.Derive(nil, 32)
 
-	sessionStore, err := identity.OpenSessionStore(privPath, sessionKey)
+	sessionStore, err := identity.OpenSessionStore(workspace.MountPoint, sessionKey)
 	if err != nil {
 		fmt.Printf("[-] Failed to open database: %v\n", err)
 		return
 	}
-	defer sessionStore.Close()
 
 	err = sessionStore.ImportContact(contactProf)
+
+	// Release DB lock
+	sessionStore.Close()
+
 	if err != nil {
 		fmt.Printf("[-] Failed to save contact to Address Book: %v\n", err)
+		return
+	}
+
+	// --- SYNC STATE ---
+	fmt.Println("[*] Synchronizing Address Book updates to persistent storage...")
+	err = phantom.LockRAMToVault(workspace.MountPoint, privPath)
+	if err != nil {
+		fmt.Printf("[-] Warning: Failed to sync database back to SSD: %v\n", err)
 		return
 	}
 
@@ -245,7 +344,23 @@ func handleResetSession(reader *bufio.Reader) {
 	fmt.Print("Enter Passphrase to unlock your private database: ")
 	passphrase := readInput(reader)
 
-	myKr, err := identity.LoadKeyring(privPath, passphrase)
+	// --- PHANTOM PIPELINE ---
+	fmt.Println("\n[*] Negotiating ephemeral tmpfs mount with OS Kernel...")
+	workspace, err := phantom.NewWorkspace()
+	if err != nil {
+		fmt.Printf("[-] Phantom Architecture initialization failed: %v\n", err)
+		return
+	}
+	defer workspace.Destroy()
+
+	fmt.Println("[*] Unpacking cryptographic identity directly into volatile memory...")
+	err = phantom.UnlockVaultToRAM(privPath, workspace.MountPoint)
+	if err != nil {
+		fmt.Printf("[-] Failed to bridge vault to RAM: %v\n", err)
+		return
+	}
+
+	myKr, err := identity.LoadKeyring(workspace.MountPoint, passphrase)
 	if err != nil {
 		fmt.Printf("[-] Access Denied: %v\n", err)
 		return
@@ -257,22 +372,35 @@ func handleResetSession(reader *bufio.Reader) {
 	xof.Write(myKr.KEMPrivKey)
 	sessionKey := xof.Derive(nil, 32)
 
-	sessionStore, err := identity.OpenSessionStore(privPath, sessionKey)
+	sessionStore, err := identity.OpenSessionStore(workspace.MountPoint, sessionKey)
 	if err != nil {
 		fmt.Printf("[-] Failed to open database: %v\n", err)
 		return
 	}
-	defer sessionStore.Close()
 
 	fmt.Println("\n[*] Select the contact whose session you want to RESET:")
 	targetProf, err := selectContact(reader, sessionStore, "CONTACT")
 	if err != nil || targetProf == nil {
 		fmt.Printf("[-] Session reset aborted: %v\n", err)
+		sessionStore.Close()
 		return
 	}
 
-	if err := sessionStore.ResetSession(targetProf.Fingerprint); err != nil {
+	err = sessionStore.ResetSession(targetProf.Fingerprint)
+
+	// Release DB Lock
+	sessionStore.Close()
+
+	if err != nil {
 		fmt.Printf("[-] Failed to reset session: %v\n", err)
+		return
+	}
+
+	// --- SYNC STATE ---
+	fmt.Println("[*] Synchronizing purged state to persistent storage...")
+	err = phantom.LockRAMToVault(workspace.MountPoint, privPath)
+	if err != nil {
+		fmt.Printf("[-] Warning: Failed to sync database back to SSD: %v\n", err)
 		return
 	}
 

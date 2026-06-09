@@ -8,6 +8,7 @@ import (
 
 	"github.com/gh4rib/pqpg/internal/identity"
 	"github.com/gh4rib/pqpg/internal/packet"
+	"github.com/gh4rib/pqpg/internal/phantom"
 )
 
 func handleVaultLock(reader *bufio.Reader) {
@@ -17,11 +18,31 @@ func handleVaultLock(reader *bufio.Reader) {
 	fmt.Print("Enter Passphrase to unlock your private key: ")
 	passphrase := readInput(reader)
 
-	myKr, err := identity.LoadKeyring(privPath, passphrase)
+	// =========================================================================
+	// THE PHANTOM PIPELINE INITIATION
+	// =========================================================================
+	fmt.Println("\n[*] Negotiating ephemeral tmpfs mount with OS Kernel...")
+	workspace, err := phantom.NewWorkspace()
+	if err != nil {
+		fmt.Printf("[-] Phantom Architecture initialization failed: %v\n", err)
+		return
+	}
+	defer workspace.Destroy() // Guarantees RAM shredding on exit/panic
+
+	fmt.Println("[*] Unpacking cryptographic identity directly into volatile memory...")
+	err = phantom.UnlockVaultToRAM(privPath, workspace.MountPoint)
+	if err != nil {
+		fmt.Printf("[-] Failed to bridge vault to RAM: %v\n", err)
+		return
+	}
+
+	// LOAD KEYS STRICTLY FROM RAM
+	myKr, err := identity.LoadKeyring(workspace.MountPoint, passphrase)
 	if err != nil {
 		fmt.Printf("[-] Access Denied: %v\n", err)
 		return
 	}
+	// =========================================================================
 
 	fmt.Print("Enter path to the file you want to lock (e.g., massive_database.kdbx): ")
 	filePath := readInput(reader)
@@ -66,7 +87,10 @@ func handleVaultLock(reader *bufio.Reader) {
 		return
 	}
 
+	// Note: No LockRAMToVault is needed because vault operations do not mutate identity state.
+
 	fmt.Printf("\n[+] VAULT LOCKED! Stream encrypted, signed, and saved to '%s'\n", outboxName)
+	fmt.Println("[+] Phantom Workspace shredded and unmounted successfully.")
 }
 
 func handleVaultUnlock(reader *bufio.Reader) {
@@ -76,11 +100,31 @@ func handleVaultUnlock(reader *bufio.Reader) {
 	fmt.Print("Enter Passphrase to unlock your private key: ")
 	passphrase := readInput(reader)
 
-	myKr, err := identity.LoadKeyring(privPath, passphrase)
+	// =========================================================================
+	// THE PHANTOM PIPELINE INITIATION
+	// =========================================================================
+	fmt.Println("\n[*] Negotiating ephemeral tmpfs mount with OS Kernel...")
+	workspace, err := phantom.NewWorkspace()
+	if err != nil {
+		fmt.Printf("[-] Phantom Architecture initialization failed: %v\n", err)
+		return
+	}
+	defer workspace.Destroy()
+
+	fmt.Println("[*] Unpacking cryptographic identity directly into volatile memory...")
+	err = phantom.UnlockVaultToRAM(privPath, workspace.MountPoint)
+	if err != nil {
+		fmt.Printf("[-] Failed to bridge vault to RAM: %v\n", err)
+		return
+	}
+
+	// LOAD KEYS STRICTLY FROM RAM
+	myKr, err := identity.LoadKeyring(workspace.MountPoint, passphrase)
 	if err != nil {
 		fmt.Printf("[-] Access Denied: %v\n", err)
 		return
 	}
+	// =========================================================================
 
 	fmt.Print("Enter path to the locked vault file (e.g., massive_database.kdbx.pq_vault): ")
 	ascPath := readInput(reader)
@@ -110,6 +154,7 @@ func handleVaultUnlock(reader *bufio.Reader) {
 		return
 	}
 
-	fmt.Printf("[+] VAULT OPENED. Mathematical identity proven.\n")
+	fmt.Printf("\n[+] VAULT OPENED. Mathematical identity proven.\n")
 	fmt.Printf("[+] Decrypted database restored to: %s\n", outFilename)
+	fmt.Println("[+] Phantom Workspace shredded and unmounted successfully.")
 }

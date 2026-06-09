@@ -9,6 +9,7 @@ import (
 	"github.com/gh4rib/pqpg/internal/crypto"
 	"github.com/gh4rib/pqpg/internal/identity"
 	"github.com/gh4rib/pqpg/internal/packet"
+	"github.com/gh4rib/pqpg/internal/phantom"
 )
 
 func handleStatefulDetachedSign(reader *bufio.Reader) {
@@ -18,11 +19,31 @@ func handleStatefulDetachedSign(reader *bufio.Reader) {
 	fmt.Print("Enter Passphrase to unlock your private key: ")
 	passphrase := readInput(reader)
 
-	senderKr, err := identity.LoadKeyring(privPath, passphrase)
+	// =========================================================================
+	// THE PHANTOM PIPELINE INITIATION
+	// =========================================================================
+	fmt.Println("\n[*] Negotiating ephemeral tmpfs mount with OS Kernel...")
+	workspace, err := phantom.NewWorkspace()
+	if err != nil {
+		fmt.Printf("[-] Phantom Architecture initialization failed: %v\n", err)
+		return
+	}
+	defer workspace.Destroy() // Guarantees RAM shredding on exit/panic
+
+	fmt.Println("[*] Unpacking cryptographic identity directly into volatile memory...")
+	err = phantom.UnlockVaultToRAM(privPath, workspace.MountPoint)
+	if err != nil {
+		fmt.Printf("[-] Failed to bridge vault to RAM: %v\n", err)
+		return
+	}
+
+	// LOAD KEYS FROM RAM
+	senderKr, err := identity.LoadKeyring(workspace.MountPoint, passphrase)
 	if err != nil {
 		fmt.Printf("[-] Access Denied: %v\n", err)
 		return
 	}
+	// =========================================================================
 
 	// =====================================================================
 	// FEATURE 4: CRYPTOGRAPHIC MEMORY HYGIENE
@@ -59,7 +80,7 @@ func handleStatefulDetachedSign(reader *bufio.Reader) {
 	}
 
 	// =====================================================================
-	// FEATURE 3: HARDWARE-STYLE ANTI-ROLLBACK PROTECTION
+	// FEATURE 3: HARDWARE-STYLE ANTI-ROLLBACK PROTECTION (Executed in RAM)
 	// =====================================================================
 	registry := crypto.NewRegistry()
 	statefulDSA, _ := registry.GetStatefulDSA(senderKr.Profile.DSASuite)
@@ -71,8 +92,8 @@ func handleStatefulDetachedSign(reader *bufio.Reader) {
 		return
 	}
 
-	// 2. Check the Canary file to ensure it hasn't gone backwards
-	err = identity.VerifyAndCommitCounter(senderKr.Profile.Fingerprint, currentCounter, passphrase, privPath)
+	// 2. Check the Canary file in the RAM-disk to ensure it hasn't gone backwards
+	err = identity.VerifyAndCommitCounter(senderKr.Profile.Fingerprint, currentCounter, passphrase, workspace.MountPoint)
 	if err != nil {
 		fmt.Printf("\n[☠️] %v\n", err)
 		return
@@ -95,31 +116,46 @@ func handleStatefulDetachedSign(reader *bufio.Reader) {
 	fmt.Printf("[*] Streaming file into %s engine...\n", hashAlgo)
 	fmt.Printf("[!] WARNING: Performing Synchronous %s Key Overwrite...\n", algoName)
 
-	armoredSig, err := packet.SignStatefulCleartextStream(inFile, senderKr, hashAlgo, passphrase, privPath)
+	// Pass workspace.MountPoint so the mutated private key saves to RAM, not SSD
+	armoredSig, err := packet.SignStatefulCleartextStream(inFile, senderKr, hashAlgo, passphrase, workspace.MountPoint)
 	if err != nil {
 		fmt.Printf("[-] Stateful Signing failed: %v\n", err)
+		fmt.Println("[-] Phantom RAM-disk discarded. Persistent SSD state remains safely un-incremented.")
 		return
 	}
 
 	// =====================================================================
-	// COMMIT NEW STATE TO CANARY
+	// COMMIT NEW STATE TO CANARY (In RAM)
 	// =====================================================================
 	newCounter, _ := statefulDSA.ExtractCounter(senderKr.DSAPrivKey)
-	_ = identity.VerifyAndCommitCounter(senderKr.Profile.Fingerprint, newCounter, passphrase, privPath)
+	_ = identity.VerifyAndCommitCounter(senderKr.Profile.Fingerprint, newCounter, passphrase, workspace.MountPoint)
 	// =====================================================================
 
 	outboxName := filePath + ext
 	_ = os.WriteFile(outboxName, []byte(armoredSig), 0644)
 
+	// =========================================================================
+	// STATE SYNCHRONIZATION (Atomic SSD Write-Back)
+	// =========================================================================
+	fmt.Println("[*] Synchronizing updated Stateful Signature Keys and Canaries to persistent storage...")
+	err = phantom.LockRAMToVault(workspace.MountPoint, privPath)
+	if err != nil {
+		fmt.Printf("[-] Warning: Failed to sync updated key state back to SSD: %v\n", err)
+		return
+	}
+
 	fmt.Printf("\n[+] SUCCESS! Artifact signed using %s.\n", algoName)
 	fmt.Printf("[+] Internal counter successfully committed to disk and Anti-Rollback Guard.\n")
 	fmt.Printf("[+] Signature saved to: %s\n", outboxName)
+	fmt.Println("[+] Phantom Workspace shredded and unmounted successfully.")
 }
 
 func handleStatefulDetachedVerify(reader *bufio.Reader) {
 	fmt.Print("\nEnter path to SENDER'S public folder (e.g., ./keys_bob/public): ")
 	pubPath := readInput(reader)
 
+	// Verification only requires Public Keys, so it bypasses the Phantom Workspace
+	// and executes natively on the SSD.
 	senderProf, err := identity.LoadProfile(pubPath)
 	if err != nil {
 		fmt.Printf("[-] Failed to load sender public keys: %v\n", err)

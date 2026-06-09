@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gh4rib/pqpg/internal/crypto"
 	"github.com/gh4rib/pqpg/internal/identity"
 	"github.com/gh4rib/pqpg/internal/packet"
+	"github.com/gh4rib/pqpg/internal/phantom"
 )
 
 func handleStatelessSend(reader *bufio.Reader) {
@@ -19,13 +21,33 @@ func handleStatelessSend(reader *bufio.Reader) {
 	fmt.Print("Enter Passphrase to unlock your private key: ")
 	passphrase := readInput(reader)
 
-	senderKr, err := identity.LoadKeyring(privPath, passphrase)
+	// =========================================================================
+	// THE PHANTOM PIPELINE INITIATION
+	// =========================================================================
+	fmt.Println("\n[*] Negotiating ephemeral tmpfs mount with OS Kernel...")
+	workspace, err := phantom.NewWorkspace()
+	if err != nil {
+		fmt.Printf("[-] Phantom Architecture initialization failed: %v\n", err)
+		return
+	}
+	defer workspace.Destroy() // Guarantees RAM shredding on exit/panic
+
+	fmt.Println("[*] Unpacking cryptographic identity directly into volatile memory...")
+	err = phantom.UnlockVaultToRAM(privPath, workspace.MountPoint)
+	if err != nil {
+		fmt.Printf("[-] Failed to bridge vault to RAM: %v\n", err)
+		return
+	}
+
+	// LOAD KEYS FROM RAM
+	senderKr, err := identity.LoadKeyring(workspace.MountPoint, passphrase)
 	if err != nil {
 		fmt.Printf("[-] Access Denied: %v\n", err)
 		return
 	}
+	// =========================================================================
 
-	// --- NEW: THE STATEFUL SAFETY BLOCK ---
+	// --- THE STATEFUL SAFETY BLOCK ---
 	if senderKr.Profile.DSASuite == "LMS-SHA256" || senderKr.Profile.DSASuite == "XMSSMT-SHA2" {
 		fmt.Println("\n[-] CRITICAL ARCHITECTURE HALT: Stateful Keys Cannot Be Streamed.")
 		fmt.Println("    Your identity uses a strict Hash-Based Signature Scheme (LMS/XMSS).")
@@ -45,17 +67,21 @@ func handleStatelessSend(reader *bufio.Reader) {
 	xof.Write(senderKr.KEMPrivKey)
 	sessionKey := xof.Derive(nil, 32)
 
-	sessionStore, err := identity.OpenSessionStore(privPath, sessionKey)
+	// LOAD DATABASE FROM RAM
+	sessionStore, err := identity.OpenSessionStore(workspace.MountPoint, sessionKey)
 	if err != nil {
 		return
 	}
-	defer sessionStore.Close()
 
 	fmt.Println("\n[*] Select the RECIPIENT:")
 	receiverProf, err := selectContact(reader, sessionStore, "RECIPIENT")
 	if err != nil {
+		sessionStore.Close()
 		return
 	}
+
+	// Address Book query is complete, we can close the RAM database lock early
+	sessionStore.Close()
 
 	fmt.Print("\nEnter path to the file you want to send: ")
 	filePath := readInput(reader)
@@ -100,7 +126,10 @@ func handleStatelessSend(reader *bufio.Reader) {
 		return
 	}
 
+	// Note: No LockRAMToVault needed because sending statelessly does not mutate the sender's DB state.
+
 	fmt.Printf("\n[+] SUCCESS! File encrypted statelessly and saved to '%s'\n", outboxName)
+	fmt.Println("[+] Phantom Workspace shredded and unmounted successfully.")
 }
 
 func handleStatelessReceive(reader *bufio.Reader) {
@@ -110,11 +139,31 @@ func handleStatelessReceive(reader *bufio.Reader) {
 	fmt.Print("Enter Passphrase to unlock your private key: ")
 	passphrase := readInput(reader)
 
-	receiverKr, err := identity.LoadKeyring(privPath, passphrase)
+	// =========================================================================
+	// THE PHANTOM PIPELINE INITIATION
+	// =========================================================================
+	fmt.Println("\n[*] Negotiating ephemeral tmpfs mount with OS Kernel...")
+	workspace, err := phantom.NewWorkspace()
+	if err != nil {
+		fmt.Printf("[-] Phantom Architecture initialization failed: %v\n", err)
+		return
+	}
+	defer workspace.Destroy()
+
+	fmt.Println("[*] Unpacking cryptographic identity directly into volatile memory...")
+	err = phantom.UnlockVaultToRAM(privPath, workspace.MountPoint)
+	if err != nil {
+		fmt.Printf("[-] Failed to bridge vault to RAM: %v\n", err)
+		return
+	}
+
+	// LOAD KEYS FROM RAM
+	receiverKr, err := identity.LoadKeyring(workspace.MountPoint, passphrase)
 	if err != nil {
 		fmt.Printf("[-] Access Denied: %v\n", err)
 		return
 	}
+	// =========================================================================
 
 	// Initialize DB strictly to access Address Book & Anti-Replay Cache
 	registry := crypto.NewRegistry()
@@ -126,15 +175,16 @@ func handleStatelessReceive(reader *bufio.Reader) {
 	xof.Write(receiverKr.KEMPrivKey)
 	sessionKey := xof.Derive(nil, 32)
 
-	sessionStore, err := identity.OpenSessionStore(privPath, sessionKey)
+	// LOAD DATABASE FROM RAM
+	sessionStore, err := identity.OpenSessionStore(workspace.MountPoint, sessionKey)
 	if err != nil {
 		return
 	}
-	defer sessionStore.Close()
 
 	fmt.Println("\n[*] Select the SENDER:")
 	senderProf, err := selectContact(reader, sessionStore, "SENDER")
 	if err != nil {
+		sessionStore.Close()
 		return
 	}
 
@@ -144,14 +194,24 @@ func handleStatelessReceive(reader *bufio.Reader) {
 	inFile, err := os.Open(ascPath)
 	if err != nil {
 		fmt.Printf("[-] Failed to open incoming stream: %v\n", err)
+		sessionStore.Close()
 		return
 	}
 	defer inFile.Close()
 
-	outFilename := fmt.Sprintf("decrypted_stateless_%s.txt", time.Now().Format("20060102_150405"))
+	// Intelligent Filename Extraction
+	baseName := filepath.Base(ascPath)
+	cleanName := strings.TrimSuffix(baseName, ".asc")
+	cleanName = strings.TrimPrefix(cleanName, "stateless_")
+	if cleanName == "" {
+		cleanName = fmt.Sprintf("payload_%s.bin", time.Now().Format("150405"))
+	}
+	outFilename := fmt.Sprintf("inbox_stateless_%s", cleanName)
+
 	outFile, err := os.Create(outFilename)
 	if err != nil {
 		fmt.Printf("[-] Failed to allocate output file: %v\n", err)
+		sessionStore.Close()
 		return
 	}
 
@@ -159,12 +219,28 @@ func handleStatelessReceive(reader *bufio.Reader) {
 	err = packet.StatelessOpen(inFile, outFile, sessionStore, receiverKr, senderProf)
 	outFile.Close()
 
+	// Explicitly release the BoltDB file lock in the RAM disk
+	sessionStore.Close()
+
 	if err != nil {
+		// ATOMIC ROLLBACK
 		os.Remove(outFilename)
 		fmt.Printf("[-] CRITICAL: Verification or Decryption failed. File Purged. Reason: %v\n", err)
+		fmt.Println("[-] Phantom RAM-disk discarded. Persistent state rollback successful.")
 		return
 	}
 
-	fmt.Printf("[+] STATELESS VERIFICATION SUCCESSFUL. Mathematical identity proven.\n")
-	fmt.Printf("[+] Decrypted file saved to: %s\n", outFilename)
+	// =========================================================================
+	// STATE SYNCHRONIZATION (Saves the updated Anti-Replay Cache to SSD)
+	// =========================================================================
+	fmt.Println("[*] Verification Complete. Synchronizing Anti-Replay Cache to persistent storage...")
+	err = phantom.LockRAMToVault(workspace.MountPoint, privPath)
+	if err != nil {
+		fmt.Printf("[-] Warning: Failed to sync database back to SSD: %v\n", err)
+		return
+	}
+
+	fmt.Printf("\n[+] STATELESS VERIFICATION SUCCESSFUL. Mathematical identity proven.\n")
+	fmt.Printf("[+] Decrypted file natively restored to: %s\n", outFilename)
+	fmt.Println("[+] Phantom Workspace shredded and unmounted successfully.")
 }

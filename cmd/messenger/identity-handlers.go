@@ -3,11 +3,13 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/gh4rib/pqpg/internal/identity"
+	"github.com/gh4rib/pqpg/internal/phantom"
 )
 
 func handleGenerateIdentity(reader *bufio.Reader) {
@@ -200,21 +202,50 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 		}
 	}
 
-	fmt.Println("[*] Executing mathematical key generation arrays...")
-	err := identity.GenerateIdentity(name, email, comment, kem, dsa, aead, xof, ".", pass1)
+	// =========================================================================
+	// THE PHANTOM PIPELINE INITIATION (Key Generation)
+	// =========================================================================
+	fmt.Println("\n[*] Negotiating ephemeral tmpfs mount with OS Kernel...")
+	workspace, err := phantom.NewWorkspace()
+	if err != nil {
+		fmt.Printf("[-] Phantom Architecture initialization failed: %v\n", err)
+		return
+	}
+	defer workspace.Destroy()
+
+	fmt.Println("[*] Executing mathematical key generation arrays strictly in volatile RAM...")
+
+	// Pass the RAM-disk MountPoint as the directory for identity generation
+	err = identity.GenerateIdentity(name, email, comment, kem, dsa, aead, xof, workspace.MountPoint, pass1)
 	if err != nil {
 		fmt.Printf("[-] Failed to generate identity: %v\n", err)
 		return
 	}
 
+	// Calculate the directory name created by GenerateIdentity
 	safeName := strings.ReplaceAll(name, " ", "_")
-	pubDir := filepath.Join(".", fmt.Sprintf("keys_%s", safeName), "public")
+	identityDirName := fmt.Sprintf("keys_%s", safeName)
+
+	srcDir := filepath.Join(workspace.MountPoint, identityDirName)
+	dstDir := filepath.Join(".", identityDirName)
+
+	fmt.Println("[*] Key generation complete. Extracting sealed vault to persistent SSD...")
+
+	// Safely copy the encrypted vault out of RAM and onto the physical disk
+	err = copyDirToSSD(srcDir, dstDir)
+	if err != nil {
+		fmt.Printf("[-] Failed to save encrypted identity to SSD: %v\n", err)
+		return
+	}
+
+	pubDir := filepath.Join(dstDir, "public")
 	prof, err := identity.LoadProfile(pubDir)
 	if err == nil {
 		fmt.Println("\n[+] Identity Successfully Created and Symmetrically Encrypted!")
 		fmt.Printf("    User ID:     %s\n", prof.UserID())
 		fmt.Printf("    Fingerprint: %s\n", prof.Fingerprint)
 		fmt.Printf("    -> Encrypted key block: ./keys_%s/private/private_key.asc (PROTECTED)\n", safeName)
+		fmt.Println("[+] Phantom Workspace shredded and unmounted successfully.")
 	}
 }
 
@@ -230,6 +261,7 @@ func handleViewKeyrings() {
 	found := false
 	for _, f := range files {
 		if f.IsDir() && strings.HasPrefix(f.Name(), "keys_") {
+			// Profile reads are exclusively public metadata. No Phantom isolation required.
 			pubDir := filepath.Join(f.Name(), "public")
 			prof, err := identity.LoadProfile(pubDir)
 			if err == nil {
@@ -249,4 +281,38 @@ func handleViewKeyrings() {
 	} else {
 		fmt.Println("[-] No local keyrings found in the current directory.")
 	}
+}
+
+// copyDirToSSD performs a recursive, cross-device safe copy from the tmpfs RAM disk to the SSD.
+func copyDirToSSD(src string, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		destPath := filepath.Join(dst, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(destPath, info.Mode())
+		}
+
+		sourceFile, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer sourceFile.Close()
+
+		destFile, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode())
+		if err != nil {
+			return err
+		}
+		defer destFile.Close()
+
+		_, err = io.Copy(destFile, sourceFile)
+		return err
+	})
 }
