@@ -84,8 +84,14 @@ func handleSend(reader *bufio.Reader) {
 	// =========================================================================
 	// THE DATA PLANE (Persists on SSD)
 	// =========================================================================
-	fmt.Print("\nEnter path to the massive file you want to send (e.g., ubuntu.iso): ")
-	filePath := readInput(reader)
+	filePath, err := resolveInputPath(reader, "\nEnter path to the file or directory you want to send: ")
+	if err != nil {
+		fmt.Printf("[-] %v\n", err)
+		sessionStore.Close()
+		return
+	}
+	//fmt.Print("\nEnter path to the massive file you want to send (e.g., ubuntu.iso): ")
+	//filePath := readInput(reader)
 
 	inFile, err := os.Open(filePath)
 	if err != nil {

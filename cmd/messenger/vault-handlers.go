@@ -44,8 +44,14 @@ func handleVaultLock(reader *bufio.Reader) {
 	}
 	// =========================================================================
 
-	fmt.Print("Enter path to the file you want to lock (e.g., massive_database.kdbx): ")
-	filePath := readInput(reader)
+	//fmt.Print("Enter path to the file you want to lock (e.g., massive_database.kdbx): ")
+	//filePath := readInput(reader)
+
+	filePath, err := resolveInputPath(reader, "\nEnter path to the file or directory you want to lock: ")
+	if err != nil {
+		fmt.Printf("[-] %v\n", err)
+		return
+	}
 
 	inFile, err := os.Open(filePath)
 	if err != nil {

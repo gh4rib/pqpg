@@ -83,8 +83,13 @@ func handleStatelessSend(reader *bufio.Reader) {
 	// Address Book query is complete, we can close the RAM database lock early
 	sessionStore.Close()
 
-	fmt.Print("\nEnter path to the file you want to send: ")
-	filePath := readInput(reader)
+	//fmt.Print("\nEnter path to the file you want to send: ")
+	//filePath := readInput(reader)
+	filePath, err := resolveInputPath(reader, "\nEnter path to the file or directory you want to send: ")
+	if err != nil {
+		fmt.Printf("[-] %v\n", err)
+		return
+	}
 
 	inFile, err := os.Open(filePath)
 	if err != nil {

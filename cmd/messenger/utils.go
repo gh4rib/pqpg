@@ -14,8 +14,17 @@ import (
 // Core UI Helpers
 // ---------------------------------------------------------------------
 
+//func readInput(reader *bufio.Reader) string {
+//	input, _ := reader.ReadString('\n')
+//	return strings.TrimSpace(input)
+//}
+
+// readInput reads a line from the terminal and returns a cleaned string
 func readInput(reader *bufio.Reader) string {
-	input, _ := reader.ReadString('\n')
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return ""
+	}
 	return strings.TrimSpace(input)
 }
 

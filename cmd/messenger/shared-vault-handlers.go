@@ -11,8 +11,13 @@ import (
 )
 
 func handleSharedVaultLock(reader *bufio.Reader) {
-	fmt.Print("\nEnter path to the file you want to split-lock (e.g., corporate_passwords.kdbx): ")
-	filePath := readInput(reader)
+	//fmt.Print("\nEnter path to the file you want to split-lock (e.g., corporate_passwords.kdbx): ")
+	//filePath := readInput(reader)
+	filePath, err := resolveInputPath(reader, "\nEnter path to the file or directory you want to split-lock: ")
+	if err != nil {
+		fmt.Printf("[-] %v\n", err)
+		return
+	}
 
 	inFile, err := os.Open(filePath)
 	if err != nil {

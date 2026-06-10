@@ -32,8 +32,13 @@ func handleTimeLockSeal(reader *bufio.Reader) {
 	fmt.Println("    specific hardware before sealing critical long-term files!")
 	fmt.Println("======================================================================")
 
-	fmt.Print("\nEnter path to the file to lock (e.g., leak.zip): ")
-	filePath := readInput(reader)
+	//fmt.Print("\nEnter path to the file to lock (e.g., leak.zip): ")
+	//filePath := readInput(reader)
+	filePath, err := resolveInputPath(reader, "\nEnter path to the file or directory to time-lock: ")
+	if err != nil {
+		fmt.Printf("[-] %v\n", err)
+		return
+	}
 
 	inFile, err := os.Open(filePath)
 	if err != nil {
