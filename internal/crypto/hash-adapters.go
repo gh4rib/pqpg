@@ -4,9 +4,10 @@ import (
 	"hash"
 	"io"
 
+	"crypto/sha512"
+
 	"github.com/cloudflare/circl/xof/k12"
 	"golang.org/x/crypto/sha3"
-	"crypto/sha512"
 )
 
 // ---------------------------------------------------------
@@ -34,12 +35,20 @@ func (s *sha2Adapter) Derive(input []byte, outputSize int) []byte {
 	if len(input) > 0 {
 		s.hasher.Write(input)
 	}
-	
+
 	h := s.hasher.Sum(nil)
 	out := make([]byte, outputSize)
-	copy(out, h) 
-	
-	s.hasher = nil 
+
+	if outputSize <= len(h) {
+		copy(out, h)
+	} else {
+		// CRITICAL FIX: Securely stretch entropy to prevent zero-padding on massive keys
+		shake := sha3.NewShake256()
+		shake.Write(h)
+		shake.Read(out)
+	}
+
+	s.hasher = nil
 	return out
 }
 
@@ -80,7 +89,7 @@ func (s *shakeAdapter) Derive(input []byte, outputSize int) []byte {
 	}
 	out := make([]byte, outputSize)
 	_, _ = s.hasher.Read(out)
-	
+
 	s.hasher = nil // Reset state to ensure Ratchet KDF remains isolated
 	return out
 }
@@ -123,11 +132,19 @@ func (s *sha3StandardAdapter) Derive(input []byte, outputSize int) []byte {
 	if len(input) > 0 {
 		s.hasher.Write(input)
 	}
-	
+
 	h := s.hasher.Sum(nil)
 	out := make([]byte, outputSize)
-	copy(out, h) // Safely maps fixed-length hashes to requested block sizes
-	
+
+	if outputSize <= len(h) {
+		copy(out, h)
+	} else {
+		// CRITICAL FIX: Securely stretch entropy to prevent zero-padding on massive keys
+		shake := sha3.NewShake256()
+		shake.Write(h)
+		shake.Read(out)
+	}
+
 	s.hasher = nil // Reset state
 	return out
 }
@@ -166,10 +183,10 @@ func (k *k12Adapter) Derive(input []byte, outputSize int) []byte {
 	if len(input) > 0 {
 		k.hasher.Write(input)
 	}
-	
+
 	out := make([]byte, outputSize)
 	_, _ = k.hasher.Read(out)
-	
+
 	k.hasher = nil // Reset state
 	return out
 }

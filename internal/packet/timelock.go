@@ -1,14 +1,14 @@
 package packet
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
+	"bufio"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/gh4rib/pqpg/internal/crypto"
@@ -29,18 +29,20 @@ func SealTimeLockStream(in io.Reader, out io.Writer, operations uint64, aeadSuit
 		return err
 	}
 
-	// 1. Dependency Injection: Use the RSA VDF Engine
 	engine := vdf.NewRSATimeLock()
 
-	// 2. Generate the Puzzle and the ZKP
 	puzzle, err := engine.Generate(operations)
 	if err != nil {
 		return err
 	}
 
-	// 3. Squeeze the AES Master Key from the Solved Target State
-	keyHash := sha256.Sum256(puzzle.TargetH)
-	masterKey := keyHash[:aead.KeySize()]
+	// --- CRITICAL FIX: PREVENT OUT OF BOUNDS PANIC FOR MASSIVE KEYS ---
+	xof, _ := registry.GetXOF("SHAKE256")
+	xof.Write([]byte("PQPG-TimeLock-Key-v1"))
+	xof.Write(puzzle.TargetH)
+
+	masterKey := xof.Derive(nil, aead.KeySize())
+	defer crypto.Wipe(masterKey) // HYGIENE
 
 	nonce := make([]byte, aead.NonceSize())
 	rand.Read(nonce)
@@ -54,7 +56,6 @@ func SealTimeLockStream(in io.Reader, out io.Writer, operations uint64, aeadSuit
 	metaBytes, _ := json.Marshal(metadata)
 	fmt.Fprintf(out, "-----BEGIN PQPG TIMELOCK PUZZLE-----\n%s\n-----BEGIN TIMELOCK PAYLOAD-----\n", base64.StdEncoding.EncodeToString(metaBytes))
 
-	// 4. Stream Encrypt the Payload
 	buf := make([]byte, ChunkSize)
 	var chunkIndex uint64 = 0
 
@@ -62,7 +63,11 @@ func SealTimeLockStream(in io.Reader, out io.Writer, operations uint64, aeadSuit
 		n, err := io.ReadFull(in, buf)
 		if n > 0 {
 			chunkNonce := buildChunkNonce(nonce, chunkIndex)
-			ciphertext, _ := aead.Seal(masterKey, chunkNonce, buf[:n], nil)
+			ciphertext, errSeal := aead.Seal(masterKey, chunkNonce, buf[:n], nil)
+			if errSeal != nil {
+				return fmt.Errorf("chunk encryption failed: %w", errSeal)
+			}
+
 			fmt.Fprintf(out, "%s\n", base64.StdEncoding.EncodeToString(ciphertext))
 			chunkIndex++
 		}
@@ -78,7 +83,7 @@ func SealTimeLockStream(in io.Reader, out io.Writer, operations uint64, aeadSuit
 	return nil
 }
 
-// OpenTimeLockStream verifies the ZKP, solves the puzzle over time, and decrypts the stream.
+// OpenTimeLockStream verifies the ZKP, solves the puzzle over time, and safely decrypts the stream.
 func OpenTimeLockStream(in io.Reader, out io.Writer, metaBase64 string) error {
 	metaBytes, err := base64.StdEncoding.DecodeString(strings.TrimSpace(metaBase64))
 	if err != nil {
@@ -90,16 +95,13 @@ func OpenTimeLockStream(in io.Reader, out io.Writer, metaBase64 string) error {
 		return err
 	}
 
-	// 1. Dependency Injection: Use the RSA VDF Engine
 	engine := vdf.NewRSATimeLock()
 
-	// 2. INSTANT ZERO-KNOWLEDGE VERIFICATION
 	if !engine.Verify(&metadata.Puzzle) {
 		return vdf.ErrInvalidZKP
 	}
 	fmt.Println("[+] ZKP Verified. The Time-Lock puzzle is mathematically sound. Beginning sequential operations...")
 
-	// 3. THE DELAY (Solve the puzzle)
 	solvedState, err := engine.Solve(&metadata.Puzzle)
 	if err != nil {
 		return err
@@ -108,21 +110,67 @@ func OpenTimeLockStream(in io.Reader, out io.Writer, metaBase64 string) error {
 	fmt.Println("\n[+] Puzzle Solved! Deriving decryption keys...")
 
 	registry := crypto.NewRegistry()
-	aead, _ := registry.GetAEAD(metadata.AEADSuite)
+	aead, err := registry.GetAEAD(metadata.AEADSuite)
+	if err != nil {
+		return err
+	}
 
-	keyHash := sha256.Sum256(solvedState)
-	masterKey := keyHash[:aead.KeySize()]
+	// --- CRITICAL FIX: PREVENT OUT OF BOUNDS PANIC FOR MASSIVE KEYS ---
+	xof, _ := registry.GetXOF("SHAKE256")
+	xof.Write([]byte("PQPG-TimeLock-Key-v1"))
+	xof.Write(solvedState)
 
-	// 4. Stream Decrypt the Payload
-	// (Standard chunked AEAD decryption loop logic goes here,
-	// identical to your existing VaultOpen loop).
+	masterKey := xof.Derive(nil, aead.KeySize())
+	defer crypto.Wipe(masterKey) // HYGIENE
 
-	// For brevity in the architecture review, assuming chunk processing:
-	block, _ := aes.NewCipher(masterKey)
-	gcm, _ := cipher.NewGCM(block)
+	tempFile, err := os.CreateTemp("", "pqpg-timelock-buffer-*")
+	if err != nil {
+		return fmt.Errorf("failed to allocate secure buffer: %v", err)
+	}
+	tempFileName := tempFile.Name()
+	defer func() {
+		tempFile.Close()
+		os.Remove(tempFileName)
+	}()
 
-	// Read lines from 'in', base64 decode, gcm.Open, and write to 'out'
-	_ = gcm
+	reader := bufio.NewReader(in)
+	var chunkIndex uint64 = 0
 
-	return nil
+	for {
+		line, err := reader.ReadString('\n')
+		line = strings.TrimSpace(line)
+
+		if line == "-----BEGIN TIMELOCK PAYLOAD-----" || line == "" {
+			continue
+		}
+		if line == "-----END PQPG TIMELOCK PUZZLE-----" {
+			break
+		}
+		if err != nil {
+			return errors.New("unexpected EOF or corrupt timelock payload")
+		}
+
+		ciphertext, err := base64.StdEncoding.DecodeString(line)
+		if err != nil {
+			return err
+		}
+
+		chunkNonce := buildChunkNonce(metadata.Nonce, chunkIndex)
+		plaintext, err := aead.Open(masterKey, chunkNonce, ciphertext, nil)
+		if err != nil {
+			return errors.New("CRITICAL: Decryption failed. Puzzle derivation incorrect or payload tampered")
+		}
+
+		if _, err := tempFile.Write(plaintext); err != nil {
+			return fmt.Errorf("failed to write to secure buffer: %w", err)
+		}
+		chunkIndex++
+	}
+
+	_, err = tempFile.Seek(0, 0)
+	if err != nil {
+		return err
+	}
+	_, errOut := io.Copy(out, tempFile)
+	return errOut
 }

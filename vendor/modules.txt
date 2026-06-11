@@ -16,6 +16,7 @@ github.com/blang/semver/v4
 github.com/cespare/xxhash
 # github.com/cloudflare/circl v1.6.3
 ## explicit; go 1.22.0
+github.com/cloudflare/circl/cipher/ascon
 github.com/cloudflare/circl/dh/x25519
 github.com/cloudflare/circl/ecc/goldilocks
 github.com/cloudflare/circl/internal/conv

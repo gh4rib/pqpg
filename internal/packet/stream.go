@@ -2,15 +2,16 @@ package packet
 
 import (
 	"bufio"
-	"bytes"
 	"compress/gzip"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -18,8 +19,6 @@ import (
 	"github.com/gh4rib/pqpg/internal/identity"
 	"github.com/klauspost/compress/zstd"
 )
-
-
 
 type OuterMetadata struct {
 	MessageID          []byte `json:"message_id"`
@@ -42,15 +41,15 @@ type InnerMetadata struct {
 	InnerNonce  []byte `json:"inner_nonce"`
 }
 
+// CRITICAL FIX: CTR Keystream Overlap Prevention
 func buildChunkNonce(baseNonce []byte, counter uint64) []byte {
 	nonce := make([]byte, len(baseNonce))
 	copy(nonce, baseNonce)
-	offset := len(nonce) - 8
-	if offset < 0 {
-		offset = 0
-	}
-	for i := 0; i < 8 && offset+i < len(nonce); i++ {
-		nonce[offset+i] ^= byte(counter >> (8 * (7 - i)))
+
+	// XOR the chunk counter into the Most Significant Bytes (Front of array).
+	// This ensures it never collides with the internal CTR incrementer (Back of array).
+	for i := 0; i < 8 && i < len(nonce); i++ {
+		nonce[i] ^= byte(counter >> (8 * (7 - i)))
 	}
 	return nonce
 }
@@ -77,7 +76,6 @@ func unpadInnerHeader(data []byte) ([]byte, error) {
 	return data[:trueLen], nil
 }
 
-// StreamSeal implements the Asymmetric Sender state of the Double Ratchet
 func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore, myKr *identity.Keyring, receiverProf *identity.Profile, compression string) error {
 	registry := crypto.NewRegistry()
 	contactID := receiverProf.Fingerprint
@@ -88,11 +86,11 @@ func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 	state, err := sessionStore.LoadState(contactID)
 	if err != nil {
 		if errors.Is(err, identity.ErrSessionNotFound) {
-			// BOOTSTRAP PHASE
 			ct, ss, err := crypto.EncapsulateEphemeral(receiverProf.KEMSuite, receiverProf.KEMPubKey)
 			if err != nil {
 				return err
 			}
+			defer crypto.Wipe(ss) // HYGIENE
 
 			root, sendChain := crypto.AdvanceRootRatchet(receiverProf.XOFSuite, make([]byte, 32), ss)
 			pub, priv, err := crypto.GenerateEphemeralKEM(myKr.Profile.KEMSuite)
@@ -118,7 +116,6 @@ func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 		}
 	}
 
-	// ASYMMETRIC PING-PONG
 	if state.NeedsRootSpin {
 		pub, priv, err := crypto.GenerateEphemeralKEM(myKr.Profile.KEMSuite)
 		if err != nil {
@@ -129,13 +126,14 @@ func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 		if err != nil {
 			return err
 		}
+		defer crypto.Wipe(ss) // HYGIENE
 
 		root, sendChain := crypto.AdvanceRootRatchet(receiverProf.XOFSuite, state.RootKey, ss)
 
 		state.RootKey = root
 		state.SendChainKey = sendChain
 		state.PreviousEphemeralPriv = state.MyEphemeralPriv
-		state.PreviousEphemeralPub = state.MyEphemeralPub // <-- BACKUP THE PUBLIC KEY
+		state.PreviousEphemeralPub = state.MyEphemeralPub
 		state.MyEphemeralPub = pub
 		state.MyEphemeralPriv = priv
 		state.SendCount = 0
@@ -146,21 +144,27 @@ func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 	newSendChain, messageKey := crypto.AdvanceSymmetricRatchet(receiverProf.XOFSuite, state.SendChainKey)
 	state.SendChainKey = newSendChain
 	state.SendCount++
+	defer crypto.Wipe(messageKey) // HYGIENE
 
 	if err := sessionStore.SaveState(state); err != nil {
 		return fmt.Errorf("failed to commit ratchet state to disk: %w", err)
 	}
 
-	ratchetXOF, _ := registry.GetXOF(receiverProf.XOFSuite)
-	ratchetXOF.Write([]byte("PQPG-SealedSender-Keys"))
-	ratchetXOF.Write(messageKey)
-	headerKey := ratchetXOF.Derive(nil, 32)
-	payloadKey := ratchetXOF.Derive(nil, 32)
-
 	aead, err := registry.GetAEAD(receiverProf.AEADSuite)
 	if err != nil {
 		return err
 	}
+
+	ratchetXOF, _ := registry.GetXOF(receiverProf.XOFSuite)
+	ratchetXOF.Write([]byte("PQPG-SealedSender-Keys"))
+	ratchetXOF.Write(messageKey)
+
+	// DYNAMIC KEY SIZING (Fixes Threefish crash)
+	headerKey := ratchetXOF.Derive(nil, aead.KeySize())
+	payloadKey := ratchetXOF.Derive(nil, aead.KeySize())
+
+	defer crypto.Wipe(headerKey)  // HYGIENE
+	defer crypto.Wipe(payloadKey) // HYGIENE
 
 	outerNonce := make([]byte, aead.NonceSize())
 	innerNonce := make([]byte, aead.NonceSize())
@@ -170,7 +174,7 @@ func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 	outer := OuterMetadata{
 		MessageID:          msgID,
 		RatchetEncap:       state.LastSentEncap,
-		TargetKeyHint:      deriveKeyHint(state.TheirEphemeralPub, receiverProf.XOFSuite), // <-- HASHED!
+		TargetKeyHint:      deriveKeyHint(state.TheirEphemeralPub, receiverProf.XOFSuite),
 		SenderEphemeralPub: state.MyEphemeralPub,
 		MessageNumber:      state.SendCount,
 		OuterAEADSuite:     receiverProf.AEADSuite,
@@ -193,7 +197,12 @@ func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 		return err
 	}
 
-	innerCiphertext, _ := aead.Seal(headerKey, outerNonce, innerPadded, outerBytes)
+	// CHECK ERROR TO PREVENT GHOST FILES
+	innerCiphertext, err := aead.Seal(headerKey, outerNonce, innerPadded, outerBytes)
+	if err != nil {
+		return fmt.Errorf("failed to seal inner envelope: %w", err)
+	}
+
 	fmt.Fprintf(out, "%s\n%s\n%s\n", InnerHeaderBoundary, base64.StdEncoding.EncodeToString(innerCiphertext), PayloadBoundary)
 
 	fiatShamirXOF, _ := registry.GetXOF(outer.OuterXOFSuite)
@@ -202,6 +211,8 @@ func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 	fiatShamirXOF.Write(innerCiphertext)
 
 	compReader, compWriter := io.Pipe()
+	defer compReader.Close() // GOROUTINE LEAK FIX
+
 	go func() {
 		var err error
 		defer func() { compWriter.CloseWithError(err) }()
@@ -237,7 +248,11 @@ func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 
 				finalPlaintext := append(buf[:n], padBuf...)
 				chunkNonce := buildChunkNonce(innerNonce, chunkIndex)
-				ciphertext, _ := aead.Seal(payloadKey, chunkNonce, finalPlaintext, nil)
+
+				ciphertext, err := aead.Seal(payloadKey, chunkNonce, finalPlaintext, nil)
+				if err != nil {
+					return fmt.Errorf("chunk encryption failed: %w", err)
+				}
 
 				fiatShamirXOF.Write(ciphertext)
 				fmt.Fprintf(out, "%s\n", base64.StdEncoding.EncodeToString(ciphertext))
@@ -245,7 +260,10 @@ func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 				break
 			} else {
 				chunkNonce := buildChunkNonce(innerNonce, chunkIndex)
-				ciphertext, _ := aead.Seal(payloadKey, chunkNonce, buf[:n], nil)
+				ciphertext, err := aead.Seal(payloadKey, chunkNonce, buf[:n], nil)
+				if err != nil {
+					return fmt.Errorf("chunk encryption failed: %w", err)
+				}
 
 				fiatShamirXOF.Write(ciphertext)
 				fmt.Fprintf(out, "%s\n", base64.StdEncoding.EncodeToString(ciphertext))
@@ -260,7 +278,10 @@ func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 			binary.LittleEndian.PutUint16(padBuf[padLen-2:], uint16(padLen))
 
 			chunkNonce := buildChunkNonce(innerNonce, chunkIndex)
-			ciphertext, _ := aead.Seal(payloadKey, chunkNonce, padBuf, nil)
+			ciphertext, err := aead.Seal(payloadKey, chunkNonce, padBuf, nil)
+			if err != nil {
+				return fmt.Errorf("chunk encryption failed: %w", err)
+			}
 
 			fiatShamirXOF.Write(ciphertext)
 			fmt.Fprintf(out, "%s\n", base64.StdEncoding.EncodeToString(ciphertext))
@@ -284,7 +305,6 @@ func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 	return nil
 }
 
-// StreamOpen implements the Asymmetric Receiver state of the Double Ratchet
 func StreamOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionStore, receiverKr *identity.Keyring, senderProf *identity.Profile) error {
 	registry := crypto.NewRegistry()
 	reader := bufio.NewReader(in)
@@ -330,17 +350,18 @@ func StreamOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 				return errors.New("no active session found, and envelope contains no KEM ciphertext")
 			}
 
-			// SECURITY UPGRADE: Verify against the 32-byte Hint, not the plaintext key!
 			expectedStaticHint := deriveKeyHint(receiverKr.Profile.KEMPubKey, outer.OuterXOFSuite)
-			if !bytes.Equal(outer.TargetKeyHint, expectedStaticHint) {
+
+			// CONSTANT TIME COMPARE
+			if subtle.ConstantTimeCompare(outer.TargetKeyHint, expectedStaticHint) != 1 {
 				return errors.New("CRITICAL: Initial message does not target the static profile key. Envelope invalid.")
 			}
 
-			// BOOTSTRAP PHASE
 			ss, err := crypto.DecapsulateEphemeral(receiverKr.Profile.KEMSuite, outer.RatchetEncap, receiverKr.KEMPrivKey)
 			if err != nil {
 				return errors.New("bootstrap decapsulation failed: unauthorized receiver")
 			}
+			defer crypto.Wipe(ss) // HYGIENE
 
 			root, recvChain := crypto.AdvanceRootRatchet(outer.OuterXOFSuite, make([]byte, 32), ss)
 
@@ -364,19 +385,16 @@ func StreamOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 	var isAlphaGlare bool
 	var messageKey []byte
 
-	// ASYMMETRIC PING-PONG
 	if string(outer.SenderEphemeralPub) != string(state.TheirEphemeralPub) {
 		var ss []byte
 		var isStaticDecap bool
 		var errDecap error
 
-		// Generate the expected 32-byte hints for routing
 		expectedStaticHint := deriveKeyHint(receiverKr.Profile.KEMPubKey, outer.OuterXOFSuite)
 		expectedCurrentHint := deriveKeyHint(state.MyEphemeralPub, outer.OuterXOFSuite)
 		expectedPrevHint := deriveKeyHint(state.PreviousEphemeralPub, outer.OuterXOFSuite)
 
-		// DETERMINISTIC KEY ROUTING: Checking the hints!
-		if bytes.Equal(outer.TargetKeyHint, expectedStaticHint) {
+		if subtle.ConstantTimeCompare(outer.TargetKeyHint, expectedStaticHint) == 1 {
 			ss, errDecap = crypto.DecapsulateEphemeral(receiverKr.Profile.KEMSuite, outer.RatchetEncap, receiverKr.KEMPrivKey)
 			if errDecap != nil {
 				return errors.New("static decapsulation failed")
@@ -399,18 +417,22 @@ func StreamOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 					state.SendCount = 0
 				}
 			}
-		} else if bytes.Equal(outer.TargetKeyHint, expectedCurrentHint) {
+		} else if subtle.ConstantTimeCompare(outer.TargetKeyHint, expectedCurrentHint) == 1 {
 			ss, errDecap = crypto.DecapsulateEphemeral(receiverKr.Profile.KEMSuite, outer.RatchetEncap, state.MyEphemeralPriv)
 			if errDecap != nil {
 				return errors.New("ephemeral decapsulation failed")
 			}
-		} else if len(state.PreviousEphemeralPub) > 0 && bytes.Equal(outer.TargetKeyHint, expectedPrevHint) {
+		} else if len(state.PreviousEphemeralPub) > 0 && subtle.ConstantTimeCompare(outer.TargetKeyHint, expectedPrevHint) == 1 {
 			ss, errDecap = crypto.DecapsulateEphemeral(receiverKr.Profile.KEMSuite, outer.RatchetEncap, state.PreviousEphemeralPriv)
 			if errDecap != nil {
 				return errors.New("historical ephemeral decapsulation failed")
 			}
 		} else {
 			return errors.New("CRITICAL: Envelope targets an unknown or expired public key. Are you trying to open a file sent to someone else?")
+		}
+
+		if ss != nil {
+			defer crypto.Wipe(ss)
 		}
 
 		var root, recvChain []byte
@@ -420,7 +442,6 @@ func StreamOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 			root, recvChain = crypto.AdvanceRootRatchet(outer.OuterXOFSuite, state.RootKey, ss)
 		}
 
-		// --- SECURITY UPGRADE: THE 1000-MESSAGE BOUNDARY ---
 		if outer.MessageNumber > state.ReceiveCount+1000 {
 			return errors.New("CRITICAL ALARM: Message exceeds the 1000-skip boundary. Possible State Exhaustion Attack dropped.")
 		}
@@ -446,9 +467,7 @@ func StreamOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 		}
 	}
 
-	// NORMAL SYMMETRIC RATCHET
 	if !isAlphaGlare {
-		// --- SECURITY UPGRADE: THE 1000-MESSAGE BOUNDARY ---
 		if outer.MessageNumber > state.ReceiveCount+1000 {
 			return errors.New("CRITICAL ALARM: Message exceeds the 1000-skip boundary. Possible State Exhaustion Attack dropped.")
 		}
@@ -475,17 +494,26 @@ func StreamOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 	}
 
 	if messageKey == nil {
-		return fmt.Errorf("CRITICAL: Ratchet desynchronized. Message %d was already processed or skipped. Are you re-testing an old file?", outer.MessageNumber)
+		return fmt.Errorf("CRITICAL: Ratchet desynchronized. Message %d was already processed or skipped", outer.MessageNumber)
+	}
+	defer crypto.Wipe(messageKey)
+
+	aead, err := registry.GetAEAD(outer.OuterAEADSuite)
+	if err != nil {
+		return err
 	}
 
 	ratchetXOF, _ := registry.GetXOF(outer.OuterXOFSuite)
 	ratchetXOF.Write([]byte("PQPG-SealedSender-Keys"))
 	ratchetXOF.Write(messageKey)
-	headerKey := ratchetXOF.Derive(nil, 32)
-	payloadKey := ratchetXOF.Derive(nil, 32)
 
-	// 4. Decrypt and Unpad Inner Envelope
-	aead, _ := registry.GetAEAD(outer.OuterAEADSuite)
+	// DYNAMIC KEY SIZING
+	headerKey := ratchetXOF.Derive(nil, aead.KeySize())
+	payloadKey := ratchetXOF.Derive(nil, aead.KeySize())
+
+	defer crypto.Wipe(headerKey)
+	defer crypto.Wipe(payloadKey)
+
 	innerPadded, err := aead.Open(headerKey, outer.OuterNonce, innerCiphertext, outerBytes)
 	if err != nil {
 		return errors.New("CRITICAL: Sealed Sender Authentication Failed. Envelope tampered")
@@ -502,15 +530,11 @@ func StreamOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 	}
 
 	if inner.SenderName != senderProf.Name {
-		return fmt.Errorf("CRITICAL: Identity mismatch. Envelope sealed by '%s', but evaluated against '%s'", inner.SenderName, senderProf.Name)
+		return fmt.Errorf("CRITICAL: Identity mismatch. Envelope sealed by '%s'", inner.SenderName)
 	}
 
 	if err := sessionStore.CheckAndCacheMessage(outer.MessageID); err != nil {
 		return err
-	}
-
-	if err := sessionStore.SaveState(state); err != nil {
-		return fmt.Errorf("failed to commit ratchet state to disk: %w", err)
 	}
 
 	payloadBoundary, _ := reader.ReadString('\n')
@@ -523,8 +547,20 @@ func StreamOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 	fiatShamirXOF.Write(outerBytes)
 	fiatShamirXOF.Write(innerCiphertext)
 
-	// 5. Decompression Pipeline
+	tempFile, err := os.CreateTemp("", "pqpg-secure-buffer-*")
+	if err != nil {
+		return fmt.Errorf("failed to allocate secure buffer: %v", err)
+	}
+
+	tempFileName := tempFile.Name()
+	defer func() {
+		tempFile.Close()
+		os.Remove(tempFileName)
+	}()
+
 	decReader, decWriter := io.Pipe()
+	defer decReader.Close()
+
 	go func() {
 		var loopErr error
 		defer func() { decWriter.CloseWithError(loopErr) }()
@@ -585,24 +621,35 @@ func StreamOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 		}
 	}()
 
-	var errOut error
+	var extractErr error
 	switch inner.Compression {
 	case "Zstd":
 		zr, _ := zstd.NewReader(decReader)
 		defer zr.Close()
-		_, errOut = io.Copy(out, zr)
+		_, extractErr = io.Copy(tempFile, zr)
 	case "Gzip":
 		gr, _ := gzip.NewReader(decReader)
 		defer gr.Close()
-		_, errOut = io.Copy(out, gr)
+		_, extractErr = io.Copy(tempFile, gr)
 	default:
-		_, errOut = io.Copy(out, decReader)
+		_, extractErr = io.Copy(tempFile, decReader)
 	}
 
+	if extractErr != nil {
+		return fmt.Errorf("extraction aborted: %v", extractErr)
+	}
+	if err := sessionStore.SaveState(state); err != nil {
+		return fmt.Errorf("failed to commit ratchet state to disk: %w", err)
+	}
+
+	_, err = tempFile.Seek(0, 0)
+	if err != nil {
+		return err
+	}
+	_, errOut := io.Copy(out, tempFile)
 	return errOut
 }
 
-// deriveKeyHint generates a 32-byte one-way digest to safely identify KEM keys without leaking them.
 func deriveKeyHint(pubKey []byte, xofSuite string) []byte {
 	registry := crypto.NewRegistry()
 	xof, _ := registry.GetXOF(xofSuite)

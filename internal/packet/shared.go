@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 
@@ -20,18 +21,15 @@ import (
 	"go.dedis.ch/kyber/v4/group/edwards25519"
 )
 
-
-
 type SharedMetadata struct {
 	AEADSuite      string   `json:"aead_suite"`
 	Compression    string   `json:"compression"`
 	XOFSuite       string   `json:"xof_suite"`
 	Nonce          []byte   `json:"nonce"`
-	VSSCommitments []string `json:"vss_commitments"` // The Public ECC Points locking the polynomial
+	VSSCommitments []string `json:"vss_commitments"`
 }
 
-// SharedVaultLock generates an Ed25519-based VSS polynomial, encrypts, and returns verified shares.
-func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, xofSuite, compression string, parts, threshold int) ([]string, error) {	
+func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, xofSuite, compression string, parts, threshold int) ([]string, error) {
 	if threshold > parts || threshold < 2 {
 		return nil, errors.New("invalid VSS parameters")
 	}
@@ -42,22 +40,23 @@ func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, xofSuite, compressi
 		return nil, err
 	}
 
-	// Initialize the v4 Edwards25519 Suite
 	suite := edwards25519.NewBlakeSHA256Ed25519()
 
-	// 1. Generate Random Polynomial Coefficients over Ed25519 Scalar Field
 	coeffs := make([]kyber.Scalar, threshold)
 	for i := range coeffs {
 		coeffs[i] = suite.Scalar().Pick(suite.RandomStream())
 	}
-	secretScalar := coeffs[0] // The Constant Term is our Vault Secret
+	secretScalar := coeffs[0]
 
-	// 2. Derive the 32-byte AES/ChaCha Master Key using SHAKE256 KDF
 	secBytes, _ := secretScalar.MarshalBinary()
-	xof, _ := registry.GetXOF(xofSuite)
-	msgKey := xof.Derive(secBytes, aead.KeySize())
+	defer crypto.Wipe(secBytes) // HYGIENE
 
-	// 3. Generate Feldman Public Commitments (C_j = a_j * G)
+	xof, _ := registry.GetXOF(xofSuite)
+
+	// DYNAMIC KEY SIZING
+	msgKey := xof.Derive(secBytes, aead.KeySize())
+	defer crypto.Wipe(msgKey) // HYGIENE
+
 	var commitments []string
 	for _, c := range coeffs {
 		pt := suite.Point().Mul(c, nil)
@@ -65,23 +64,19 @@ func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, xofSuite, compressi
 		commitments = append(commitments, base64.StdEncoding.EncodeToString(ptBytes))
 	}
 
-	// 4. Evaluate Polynomial to Generate Shares (y = f(x))
 	var encodedShares []string
 	for i := 1; i <= parts; i++ {
 		x := suite.Scalar().SetInt64(int64(i))
 		y := suite.Scalar().Zero()
 
-		// Horner's Method for Polynomial Evaluation
 		for j := threshold - 1; j >= 0; j-- {
 			y.Mul(y, x).Add(y, coeffs[j])
 		}
 
 		yBytes, _ := y.MarshalBinary()
-		// Encode as "X-Coordinate.Y-Coordinate(Base64)"
 		encodedShares = append(encodedShares, fmt.Sprintf("%d.%s", i, base64.StdEncoding.EncodeToString(yBytes)))
 	}
 
-	// 5. Initialize Streaming Metadata
 	baseNonce := make([]byte, aead.NonceSize())
 	_, _ = io.ReadFull(rand.Reader, baseNonce)
 
@@ -90,14 +85,15 @@ func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, xofSuite, compressi
 		Compression:    compression,
 		Nonce:          baseNonce,
 		XOFSuite:       xofSuite,
-		VSSCommitments: commitments, // Bind the public math to the header
+		VSSCommitments: commitments,
 	}
 
 	metaBytes, _ := json.Marshal(metadata)
 	fmt.Fprintf(out, "%s\n%s\n%s\n", SharedHeaderBoundary, base64.StdEncoding.EncodeToString(metaBytes), SharedPayloadBoundary)
 
-	// --- COMPRESSION PIPELINE ---
 	compReader, compWriter := io.Pipe()
+	defer compReader.Close()
+
 	go func() {
 		var pipeErr error
 		defer func() { compWriter.CloseWithError(pipeErr) }()
@@ -115,7 +111,6 @@ func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, xofSuite, compressi
 		}
 	}()
 
-	// 6. Encrypt & Pad the Stream
 	buf := make([]byte, ChunkSize)
 	var chunkIndex uint64 = 0
 
@@ -134,13 +129,21 @@ func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, xofSuite, compressi
 
 				finalPlaintext := append(buf[:n], padBuf...)
 				chunkNonce := buildChunkNonce(baseNonce, chunkIndex)
-				ciphertext, _ := aead.Seal(msgKey, chunkNonce, finalPlaintext, nil)
+
+				ciphertext, errSeal := aead.Seal(msgKey, chunkNonce, finalPlaintext, nil)
+				if errSeal != nil {
+					return nil, fmt.Errorf("chunk encryption failed: %w", errSeal)
+				}
 
 				fmt.Fprintf(out, "%s\n", base64.StdEncoding.EncodeToString(ciphertext))
 				break
 			} else {
 				chunkNonce := buildChunkNonce(baseNonce, chunkIndex)
-				ciphertext, _ := aead.Seal(msgKey, chunkNonce, buf[:n], nil)
+				ciphertext, errSeal := aead.Seal(msgKey, chunkNonce, buf[:n], nil)
+				if errSeal != nil {
+					return nil, fmt.Errorf("chunk encryption failed: %w", errSeal)
+				}
+
 				fmt.Fprintf(out, "%s\n", base64.StdEncoding.EncodeToString(ciphertext))
 				chunkIndex++
 			}
@@ -153,7 +156,11 @@ func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, xofSuite, compressi
 			binary.LittleEndian.PutUint16(padBuf[padLen-2:], uint16(padLen))
 
 			chunkNonce := buildChunkNonce(baseNonce, chunkIndex)
-			ciphertext, _ := aead.Seal(msgKey, chunkNonce, padBuf, nil)
+			ciphertext, errSeal := aead.Seal(msgKey, chunkNonce, padBuf, nil)
+			if errSeal != nil {
+				return nil, fmt.Errorf("chunk encryption failed: %w", errSeal)
+			}
+
 			fmt.Fprintf(out, "%s\n", base64.StdEncoding.EncodeToString(ciphertext))
 			break
 		}
@@ -166,12 +173,10 @@ func SharedVaultLock(in io.Reader, out io.Writer, aeadSuite, xofSuite, compressi
 	return encodedShares, nil
 }
 
-// SharedVaultUnlock verifies shares against VSS commitments and reconstructs via Lagrange interpolation.
 func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) error {
 	registry := crypto.NewRegistry()
 	reader := bufio.NewReader(in)
 
-	// 1. Parse the Header to extract the VSS Commitments
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
@@ -194,7 +199,6 @@ func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) erro
 		return errors.New("invalid file structure")
 	}
 
-	// 2. FELDMAN VERIFICATION
 	suite := edwards25519.NewBlakeSHA256Ed25519()
 
 	var C []kyber.Point
@@ -221,7 +225,6 @@ func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) erro
 		y := suite.Scalar()
 		_ = y.UnmarshalBinary(yBytes)
 
-		// VSS Mathematical Proof: y * G == sum(x^j * C_j)
 		lhs := suite.Point().Mul(y, nil)
 		rhs := suite.Point().Null()
 		xPow := suite.Scalar().SetInt64(1)
@@ -240,7 +243,6 @@ func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) erro
 		ys = append(ys, y)
 	}
 
-	// 3. LAGRANGE INTERPOLATION (Reconstruct the Constant Term)
 	secret := suite.Scalar().Zero()
 	for i := 0; i < len(xs); i++ {
 		num := suite.Scalar().SetInt64(1)
@@ -262,18 +264,33 @@ func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) erro
 		secret.Add(secret, term)
 	}
 
-	// 4. DECRYPTION PIPELINE (Initialize cipher first)
 	aead, err := registry.GetAEAD(metadata.AEADSuite)
 	if err != nil {
 		return fmt.Errorf("failed to load cipher suite: %w", err)
 	}
 
-	// Derive Master Key
 	secBytes, _ := secret.MarshalBinary()
+	defer crypto.Wipe(secBytes)
+
 	xof, _ := registry.GetXOF(metadata.XOFSuite)
+
+	// DYNAMIC KEY SIZING
 	msgKey := xof.Derive(secBytes, aead.KeySize())
+	defer crypto.Wipe(msgKey)
+
+	tempFile, err := os.CreateTemp("", "pqpg-shared-buffer-*")
+	if err != nil {
+		return fmt.Errorf("failed to allocate secure buffer: %v", err)
+	}
+
+	tempFileName := tempFile.Name()
+	defer func() {
+		tempFile.Close()
+		os.Remove(tempFileName)
+	}()
 
 	decReader, decWriter := io.Pipe()
+	defer decReader.Close()
 
 	go func() {
 		var loopErr error
@@ -308,7 +325,7 @@ func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) erro
 
 			plaintext, err := aead.Open(msgKey, chunkNonce, ciphertext, nil)
 			if err != nil {
-				loopErr = errors.New("CRITICAL: Decryption failed. Master Key reconstructed incorrectly")
+				loopErr = errors.New("CRITICAL: Decryption failed. Master Key reconstructed incorrectly or chunk tampered")
 				return
 			}
 
@@ -320,19 +337,28 @@ func SharedVaultUnlock(in io.Reader, out io.Writer, encodedShares []string) erro
 		}
 	}()
 
-	var errOut error
+	var extractErr error
 	switch metadata.Compression {
 	case "Zstd":
 		zr, _ := zstd.NewReader(decReader)
 		defer zr.Close()
-		_, errOut = io.Copy(out, zr)
+		_, extractErr = io.Copy(tempFile, zr)
 	case "Gzip":
 		gr, _ := gzip.NewReader(decReader)
 		defer gr.Close()
-		_, errOut = io.Copy(out, gr)
+		_, extractErr = io.Copy(tempFile, gr)
 	default:
-		_, errOut = io.Copy(out, decReader)
+		_, extractErr = io.Copy(tempFile, decReader)
 	}
 
+	if extractErr != nil {
+		return fmt.Errorf("extraction aborted: %v", extractErr)
+	}
+
+	_, err = tempFile.Seek(0, 0)
+	if err != nil {
+		return err
+	}
+	_, errOut := io.Copy(out, tempFile)
 	return errOut
 }

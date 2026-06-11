@@ -44,71 +44,88 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	fmt.Println("\n=========================================================================================")
 	fmt.Println("                      SELECT A SECURITY PROFILE CONFIGURATION")
 	fmt.Println("=========================================================================================")
+	fmt.Println(" --- X-Wing == X25519+MLKEM768 ---")
 	fmt.Println(" --- NIST FIPS STANDARDS ---")
-	fmt.Println("  1) NIST Level 3 Standard [ML-KEM-768   | ML-DSA-65          | AES-GCM  | SHAKE256]")
-	fmt.Println("  2) NIST Level 5 Maximum  [ML-KEM-1024  | ML-DSA-87          | AES-GCM  | SHA3-512]")
-	fmt.Println("  3) FIPS L5 Alternative   [ML-KEM-1024  | ML-DSA-87          | ChaCha20 | SHAKE256]")
-	fmt.Println("  4) FIPS Hash-Failsafe    [ML-KEM-1024  | SLH-DSA-SHA2-256s  | AES-GCM  | SHA3-512]")
+	fmt.Println("  1) NIST Level 3 Standard [ML-KEM-768   | ML-DSA-65          | AES-256-GCM  | SHAKE256]")
+	fmt.Println("  2) NIST Level 5 Maximum  [ML-KEM-1024  | ML-DSA-87          | AES-256-GCM  | SHA3-512]")
+	fmt.Println("  3) FIPS L5 Alternative   [ML-KEM-1024  | ML-DSA-87          | ChaCha20-Poly1305 | SHAKE256]")
+	fmt.Println("  4) FIPS Hash-Failsafe    [ML-KEM-1024  | SLH-DSA-SHA2-256s  | AES-256-GCM  | SHA3-512]")
 	fmt.Println("\n --- CONSERVATIVE / PRE-STANDARD ---")
-	fmt.Println("  5) Conservative L5       [Kyber1024    | Dilithium5         | AES-GCM  | SHA3-512]")
-	fmt.Println("  6) High-Margin Lattice   [FrodoKEM-640 | ML-DSA-87          | AES-GCM  | SHAKE256]")
-	fmt.Println("  7) Pure Sponge/Keccak    [ML-KEM-1024  | SLH-DSA-SHAKE-256f | Ascon    | KangarooTwelve]")
-	fmt.Println("  8) Ultimate Paranoia     [FrodoKEM-640 | SLH-DSA-SHAKE-256s | ChaCha20 | SHA3-512]")
+	fmt.Println("  5) Conservative L5       [Kyber1024    | Dilithium5         | AES-256-GCM  | SHA3-512]")
+	fmt.Println("  6) High-Margin Lattice   [FrodoKEM-640 | ML-DSA-87          | AES-256-GCM  | SHAKE256]")
+	fmt.Println("  7) Ultimate Paranoia     [FrodoKEM-640 | SLH-DSA-SHAKE-256s | ChaCha20-Poly1305 | SHA3-512]")
 	fmt.Println("\n --- HYBRID (CLASSICAL + POST-QUANTUM) ---")
-	fmt.Println("  9) Hybrid Standard       [X-Wing       | ML-DSA-87          | AES-GCM  | SHA3-512]")
-	fmt.Println(" 10) Hybrid Failsafe       [X-Wing       | SLH-DSA-SHA2-256s  | ChaCha20 | KangarooTwelve]")
-	fmt.Println(" 11) Full Composite Max    [X-Wing       | EdDilithium3       | AES-GCM  | SHA3-512]")
-	fmt.Println(" 12) Paranoia Composite    [X-Wing       | EdDilithium3       | Ascon    | KangarooTwelve]")
+	fmt.Println("  8) Hybrid Standard       [X-Wing       | ML-DSA-87          | AES-256-GCM  | SHA3-512]")
+	fmt.Println("  9) Hybrid Failsafe       [X-Wing       | SLH-DSA-SHA2-256s  | ChaCha20-Poly1305 | KangarooTwelve]")
+	fmt.Println(" 10) Full Composite Max    [X-Wing       | EdDilithium3       | AES-256-GCM  | SHA3-512]")
 	fmt.Println("\n --- FALCON-1024 (FAST FOURIER LATTICE) ---")
-	fmt.Println(" 13) ML-KEM + Falcon       [ML-KEM-1024  | Falcon-1024        | AES-GCM  | SHA3-512]")
-	fmt.Println(" 14) Frodo + Falcon        [FrodoKEM-640 | Falcon-1024        | ChaCha20 | SHAKE256]")
-	fmt.Println(" 15) Hybrid X-Wing + Falcon[X-Wing       | Falcon-1024        | AES-GCM  | SHA3-512]")
+	fmt.Println(" 12) ML-KEM + Falcon       [ML-KEM-1024  | Falcon-1024        | AES-256-GCM  | SHA3-512]")
+	fmt.Println(" 13) Frodo + Falcon        [FrodoKEM-640 | Falcon-1024        | ChaCha20-Poly1305 | SHAKE256]")
+	fmt.Println(" 14) Hybrid X-Wing + Falcon[X-Wing       | Falcon-1024        | AES-256-GCM  | SHA3-512]")
 	fmt.Println("\n --- STATEFUL HASH-BASED (RELEASE ENGINEER) ---")
-	fmt.Println(" 16) Absolute Max SHA2     [ML-KEM-1024  | XMSSMT-SHA2_60/12_512     | AES-GCM  | SHA3-512]")
-	fmt.Println(" 17) Absolute Max SHAKE    [ML-KEM-1024  | XMSSMT-SHAKE256_60/12_512 | ChaCha20 | SHA3-512]")
-	fmt.Println(" 18) Conservative Lattice  [FrodoKEM-640 | XMSSMT-SHA2_40/8_512      | AES-GCM  | SHAKE256]")
-	fmt.Println(" 19) Pure Sponge L-Free    [FrodoKEM-640 | XMSSMT-SHAKE256_40/8_512  | ChaCha20 | SHAKE256]")
-	fmt.Println(" 20) Hybrid Max SHA2       [X-Wing       | XMSSMT-SHA2_60/6_256      | AES-GCM  | SHA3-512]")
-	fmt.Println(" 21) Hybrid Max SHAKE      [X-Wing       | XMSSMT-SHAKE256_60/6_256  | ChaCha20 | SHA3-512]")
-	fmt.Println(" 22) Single-Tree SHA2      [ML-KEM-1024  | XMSS-SHA2_20_512          | AES-GCM  | SHA3-512]")
-	fmt.Println(" 23) Single-Tree SHAKE     [X-Wing       | XMSS-SHAKE256_20_512      | ChaCha20 | SHA3-512]")
+	fmt.Println(" 15) Absolute Max SHA2     [ML-KEM-1024  | XMSSMT-SHA2_60/12_512     | AES-256-GCM  | SHA3-512]")
+	fmt.Println(" 16) Absolute Max SHAKE    [ML-KEM-1024  | XMSSMT-SHAKE256_60/12_512 | ChaCha20-Poly1305 | SHA3-512]")
+	fmt.Println(" 17) Conservative Lattice  [FrodoKEM-640 | XMSSMT-SHA2_40/8_512      | AES-256-GCM  | SHAKE256]")
+	fmt.Println(" 18) Pure Sponge L-Free    [FrodoKEM-640 | XMSSMT-SHAKE256_40/8_512  | ChaCha20-Poly1305 | SHAKE256]")
+	fmt.Println(" 19) Hybrid Max SHA2       [X-Wing       | XMSSMT-SHA2_60/6_256      | AES-256-GCM  | SHA3-512]")
+	fmt.Println(" 20) Hybrid Max SHAKE      [X-Wing       | XMSSMT-SHAKE256_60/6_256  | ChaCha20-Poly1305 | SHA3-512]")
+	fmt.Println(" 21) Single-Tree SHA2      [ML-KEM-1024  | XMSS-SHA2_20_512          | AES-256-GCM  | SHA3-512]")
+	fmt.Println(" 22) Single-Tree SHAKE     [X-Wing       | XMSS-SHAKE256_20_512      | ChaCha20-Poly1305 | SHA3-512]")
 	fmt.Println("\n --- LEIGHTON-MICALI (LMS) MAXIMUM SECRECY ---")
-	fmt.Println(" 24) Max LMS Compact       [ML-KEM-1024  | LMS_H25_W8                | AES-GCM  | SHA3-512]")
-	fmt.Println(" 25) Max LMS Balanced      [ML-KEM-1024  | LMS_H25_W4                | ChaCha20 | SHA3-512]")
-	fmt.Println(" 26) Frodo LMS Compact     [FrodoKEM-640 | LMS_H25_W8                | AES-GCM  | SHAKE256]")
-	fmt.Println(" 27) Frodo LMS Balanced    [FrodoKEM-640 | LMS_H20_W4                | ChaCha20 | SHAKE256]")
-	fmt.Println(" 28) X-Wing LMS Compact    [X-Wing       | LMS_H25_W8                | AES-GCM  | SHA3-512]")
-	fmt.Println(" 29) X-Wing LMS Balanced   [X-Wing       | LMS_H20_W4                | ChaCha20 | SHA3-512]")
-	fmt.Println(" 30) Fast LMS Compact      [ML-KEM-1024  | LMS_H20_W8                | AES-GCM  | SHA3-512]")
-	fmt.Println(" 31) Fast LMS Balanced     [X-Wing       | LMS_H20_W4                | ChaCha20 | SHA3-512]")
-	fmt.Println(" 32) Max LMS Compact       [ML-KEM-1024  | LMS_H15_W8                | AES-GCM  | SHA3-512]")
-	fmt.Println(" 33) Max LMS Balanced      [ML-KEM-1024  | LMS_H15_W4                | ChaCha20 | SHA3-512]")
-	fmt.Println(" 34) Frodo LMS Compact     [FrodoKEM-640 | LMS_H10_W8                | AES-GCM  | SHAKE256]")
-	fmt.Println(" 35) Frodo LMS Balanced    [FrodoKEM-640 | LMS_H15_W4                | ChaCha20 | SHAKE256]")
-	fmt.Println(" 36) X-Wing LMS Compact    [X-Wing       | LMS_H10_W8                | AES-GCM  | SHA3-512]")
-	fmt.Println(" 37) X-Wing LMS Balanced   [X-Wing       | LMS_H15_W4                | ChaCha20 | SHA3-512]")
-	fmt.Println(" 38) Fast LMS Compact      [ML-KEM-1024  | LMS_H10_W8                | AES-GCM  | SHA3-512]")
-	fmt.Println(" 39) Fast LMS Balanced     [X-Wing       | LMS_H10_W4                | ChaCha20 | SHA3-512]")
+	fmt.Println(" 23) Max LMS Compact       [ML-KEM-1024  | LMS_H25_W8                | AES-256-GCM  | SHA3-512]")
+	fmt.Println(" 24) Max LMS Balanced      [ML-KEM-1024  | LMS_H25_W4                | ChaCha20-Poly1305 | SHA3-512]")
+	fmt.Println(" 25) Frodo LMS Compact     [FrodoKEM-640 | LMS_H25_W8                | AES-256-GCM  | SHAKE256]")
+	fmt.Println(" 26) Frodo LMS Balanced    [FrodoKEM-640 | LMS_H20_W4                | ChaCha20-Poly1305 | SHAKE256]")
+	fmt.Println(" 27) X-Wing LMS Compact    [X-Wing       | LMS_H25_W8                | AES-256-GCM  | SHA3-512]")
+	fmt.Println(" 28) X-Wing LMS Balanced   [X-Wing       | LMS_H20_W4                | ChaCha20-Poly1305 | SHA3-512]")
+	fmt.Println(" 29) Fast LMS Compact      [ML-KEM-1024  | LMS_H20_W8                | AES-256-GCM  | SHA3-512]")
+	fmt.Println(" 30) Fast LMS Balanced     [X-Wing       | LMS_H20_W4                | ChaCha20-Poly1305 | SHA3-512]")
+	fmt.Println(" 31) Max LMS Compact       [ML-KEM-1024  | LMS_H15_W8                | AES-256-GCM  | SHA3-512]")
+	fmt.Println(" 32) Max LMS Balanced      [ML-KEM-1024  | LMS_H15_W4                | ChaCha20-Poly1305 | SHA3-512]")
+	fmt.Println(" 33) Frodo LMS Compact     [FrodoKEM-640 | LMS_H10_W8                | AES-256-GCM  | SHAKE256]")
+	fmt.Println(" 34) Frodo LMS Balanced    [FrodoKEM-640 | LMS_H15_W4                | ChaCha20-Poly1305 | SHAKE256]")
+	fmt.Println(" 35) X-Wing LMS Compact    [X-Wing       | LMS_H10_W8                | AES-256-GCM  | SHA3-512]")
+	fmt.Println(" 36) X-Wing LMS Balanced   [X-Wing       | LMS_H15_W4                | ChaCha20-Poly1305 | SHA3-512]")
+	fmt.Println(" 37) Fast LMS Compact      [ML-KEM-1024  | LMS_H10_W8                | AES-256-GCM  | SHA3-512]")
+	fmt.Println(" 38) Fast LMS Balanced     [X-Wing       | LMS_H10_W4                | ChaCha20-Poly1305 | SHA3-512]")
 	fmt.Println("\n --- EXTENDED NONCE (24-BYTE COLLISION RESISTANT) ---")
-	fmt.Println(" 40) XAES NIST Level 5     [ML-KEM-1024  | ML-DSA-87          | XAES-GCM | SHA3-512]")
-	fmt.Println(" 41) XAES Conservative     [FrodoKEM-640 | ML-DSA-87          | XAES-GCM | SHAKE256]")
-	fmt.Println(" 42) XAES Hybrid Max       [X-Wing       | EdDilithium3       | XAES-GCM | SHA3-512]")
-	fmt.Println(" 43) XChaCha NIST Level 5  [ML-KEM-1024  | ML-DSA-87          | XChaCha  | SHA3-512]")
-	fmt.Println(" 44) XChaCha Conservative  [FrodoKEM-640 | SLH-DSA-SHAKE-256s | XChaCha  | SHAKE256]")
-	fmt.Println(" 45) XChaCha Hybrid Max    [X-Wing       | EdDilithium3       | XChaCha  | SHA3-512]")
+	fmt.Println(" 39) XAES NIST Level 5     [ML-KEM-1024  | ML-DSA-87          | XAES-256-GCM | SHA3-512]")
+	fmt.Println(" 40) XAES Conservative     [FrodoKEM-640 | ML-DSA-87          | XAES-256-GCM | SHAKE256]")
+	fmt.Println(" 41) XAES Hybrid Max       [X-Wing       | EdDilithium3       | XAES-256-GCM | SHA3-512]")
+	fmt.Println(" 42) XChaCha NIST Level 5  [ML-KEM-1024  | ML-DSA-87          | XChaCha-Poly1305  | SHA3-512]")
+	fmt.Println(" 43) XChaCha Conservative  [FrodoKEM-640 | SLH-DSA-SHAKE-256s | XChaCha-Poly1305  | SHAKE256]")
+	fmt.Println(" 44) XChaCha Hybrid Max    [X-Wing       | EdDilithium3       | XChaCha-Poly1305  | SHA3-512]")
 	fmt.Println("\n --- MISUSE-RESISTANT / DETERMINISTIC AEAD ---")
-	fmt.Println(" 46) GCM-SIV NIST Level 5  [ML-KEM-1024  | ML-DSA-87          | GCM-SIV  | SHA3-512]")
-	fmt.Println(" 47) GCM-SIV Conservative  [FrodoKEM-640 | SLH-DSA-SHAKE-256s | GCM-SIV  | SHAKE256]")
-	fmt.Println(" 48) GCM-SIV Hybrid Max    [X-Wing       | EdDilithium3       | GCM-SIV  | SHA3-512]")
-	fmt.Println(" 49) SIV-CMAC NIST Level 5 [ML-KEM-1024  | ML-DSA-87          | SIV-CMAC | SHA3-512]")
-	fmt.Println(" 50) SIV-CMAC Conservative [FrodoKEM-640 | SLH-DSA-SHAKE-256s | SIV-CMAC | SHAKE256]")
-	fmt.Println(" 51) SIV-CMAC Hybrid Max   [X-Wing       | EdDilithium3       | SIV-CMAC | SHA3-512]")
-	fmt.Println(" 52) Deoxys-II NIST L5     [ML-KEM-1024  | ML-DSA-87          | Deoxys-II | SHA3-512]")
-	fmt.Println(" 53) Deoxys-II Conserv.    [FrodoKEM-640 | SLH-DSA-SHAKE-256s | Deoxys-II | SHAKE256]")
-	fmt.Println(" 54) Deoxys-II Hybrid Max  [X-Wing       | EdDilithium3       | Deoxys-II | SHA3-512]")
-	fmt.Println(" 55) Deoxys-II Stateful    [X-Wing       | XMSSMT-SHA2_60/12  | Deoxys-II | SHA3-512]")
+	fmt.Println(" 45) GCM-SIV NIST Level 5  [ML-KEM-1024  | ML-DSA-87          | AES-256-GCM-SIV  | SHA3-512]")
+	fmt.Println(" 46) GCM-SIV Conservative  [FrodoKEM-640 | SLH-DSA-SHAKE-256s | AES-256-GCM-SIV  | SHAKE256]")
+	fmt.Println(" 47) GCM-SIV Hybrid Max    [X-Wing       | EdDilithium3       | AES-256-GCM-SIV  | SHA3-512]")
+	fmt.Println(" 48) SIV-CMAC NIST Level 5 [ML-KEM-1024  | ML-DSA-87          | AES-256-SIV-CMAC | SHA3-512]")
+	fmt.Println(" 49) SIV-CMAC Conservative [FrodoKEM-640 | SLH-DSA-SHAKE-256s | AES-256-SIV-CMAC | SHAKE256]")
+	fmt.Println(" 50) SIV-CMAC Hybrid Max   [X-Wing       | EdDilithium3       | AES-256-SIV-CMAC | SHA3-512]")
+	fmt.Println(" 51) Deoxys-II NIST L5     [ML-KEM-1024  | ML-DSA-87          | Deoxys-II-256-128 | SHA3-512]")
+	fmt.Println(" 52) Deoxys-II Conserv.    [FrodoKEM-640 | SLH-DSA-SHAKE-256s | Deoxys-II-256-128 | SHAKE256]")
+	fmt.Println(" 53) Deoxys-II Hybrid Max  [X-Wing       | EdDilithium3       | Deoxys-II-256-128 | SHA3-512]")
+	fmt.Println(" 54) Deoxys-II Stateful    [X-Wing       | XMSSMT-SHA2_60/12  | Deoxys-II-256-128 | SHA3-512]")
+	fmt.Println("\n --- SOVEREIGN / ISO STANDARDS (FEISTEL NETWORK) ---")
+	fmt.Println(" 55) Camellia NIST L5      [ML-KEM-1024  | ML-DSA-87          | Camellia-EtM | SHA3-512]")
+	fmt.Println(" 56) Camellia Conserv.     [FrodoKEM-640 | SLH-DSA-SHAKE-256s | Camellia-EtM | SHAKE256]")
+	fmt.Println(" 57) Camellia Hybrid Max   [X-Wing       | EdDilithium3       | Camellia-EtM | SHA3-512]")
+	fmt.Println("\n --- ULTRA-CONSERVATIVE FORTRESS (MAXIMUM STRUCTURAL SECURITY) ---")
+	fmt.Println(" 58) Serpent NIST L5       [ML-KEM-1024  | ML-DSA-87          | Serpent-EtM  | SHA3-512]")
+	fmt.Println(" 59) Serpent Conserv.      [FrodoKEM-640 | SLH-DSA-SHAKE-256s | Serpent-EtM  | SHAKE256]")
+	fmt.Println(" 60) Serpent Hybrid Max    [X-Wing       | EdDilithium3       | Serpent-EtM  | SHA3-512]")
+	fmt.Println("\n --- MASSIVE WIDE-BLOCK CIPHERS (SKEIN/THREEFISH) ---")
+	fmt.Println(" 61) Threefish-256 L5      [ML-KEM-1024  | ML-DSA-87          | Threefish-256-EtM | SHA3-512]")
+	fmt.Println(" 62) Threefish-512 Conserv.[FrodoKEM-640 | SLH-DSA-SHAKE-256s | Threefish-512-EtM | SHAKE256]")
+	fmt.Println(" 63) Threefish-1024 Max    [X-Wing       | EdDilithium3       | Threefish-1024-EtM  | KangarooTwelve]")
+	fmt.Println("\n --- NIST LIGHTWEIGHT CRYPTOGRAPHY WINNER (LWC) ---")
+	fmt.Println(" 64) Ascon-128a Fast       [ML-KEM-768   | ML-DSA-65          | Ascon-128a    | SHAKE128]")
+	fmt.Println(" 65) Ascon-128 Standard    [ML-KEM-1024  | ML-DSA-87          | Ascon-128     | SHAKE256]")
+	fmt.Println(" 66) Ascon-80pq Grover     [X-Wing       | EdDilithium3       | Ascon-80pq    | SHA3-512]")
+	fmt.Println(" 67) Pure Sponge/Keccak    [ML-KEM-1024  | SLH-DSA-SHAKE-256f | Ascon-80pq    | KangarooTwelve]")
+	fmt.Println(" 68) Paranoia Composite    [FrodoKEM-640 | EdDilithium3       | Ascon-80pq    | KangarooTwelve]")
 	fmt.Println("=========================================================================================")
-	fmt.Print("Choice [1-55]: ")
+	fmt.Print("Choice [1-68]: ")
 
 	profChoice := readInput(reader)
 
@@ -126,8 +143,6 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 		kem, dsa, aead, xof = "Kyber1024", "Dilithium5", "AES-256-GCM", "SHA3-512"
 	case "6":
 		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "ML-DSA-87", "AES-256-GCM", "SHAKE256"
-	case "7":
-		kem, dsa, aead, xof = "ML-KEM-1024", "SLH-DSA-SHAKE-256f", "Ascon-128a", "KangarooTwelve"
 	case "8":
 		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "SLH-DSA-SHAKE-256s", "ChaCha20-Poly1305", "SHA3-512"
 	case "9":
@@ -136,8 +151,6 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 		kem, dsa, aead, xof = "X-Wing", "SLH-DSA-SHA2-256s", "ChaCha20-Poly1305", "KangarooTwelve"
 	case "11":
 		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "AES-256-GCM", "SHA3-512"
-	case "12":
-		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "Ascon-128a", "KangarooTwelve"
 	case "13":
 		kem, dsa, aead, xof = "ML-KEM-1024", "Falcon-1024", "AES-256-GCM", "SHA3-512"
 	case "14":
@@ -224,6 +237,34 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "Deoxys-II-256-128", "SHA3-512"
 	case "55":
 		kem, dsa, aead, xof = "X-Wing", "XMSSMT-SHA2_60/12_512", "Deoxys-II-256-128", "SHA3-512"
+	case "56":
+		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "Camellia-256-EtM", "SHA3-512"
+	case "57":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "SLH-DSA-SHAKE-256s", "Camellia-256-EtM", "SHAKE256"
+	case "58":
+		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "Camellia-256-EtM", "SHA3-512"
+	case "59":
+		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "Serpent-256-EtM", "SHA3-512"
+	case "60":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "SLH-DSA-SHAKE-256s", "Serpent-256-EtM", "SHAKE256"
+	case "61":
+		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "Serpent-256-EtM", "SHA3-512"
+	case "62":
+		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "Threefish-256-EtM", "SHA3-512"
+	case "63":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "SLH-DSA-SHAKE-256s", "Threefish-512-EtM", "SHAKE256"
+	case "64":
+		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "Threefish-1024-EtM", "KangarooTwelve"
+	case "65":
+		kem, dsa, aead, xof = "ML-KEM-768", "ML-DSA-65", "Ascon-128a", "SHAKE128"
+	case "66":
+		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "Ascon-128", "SHAKE256"
+	case "67":
+		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "Ascon-80pq", "SHA3-512"
+	case "68":
+		kem, dsa, aead, xof = "ML-KEM-1024", "SLH-DSA-SHAKE-256f", "Ascon-80pq", "KangarooTwelve"
+	case "69":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "EdDilithium3", "Ascon-80pq", "KangarooTwelve"
 	default:
 		fmt.Println("[-] Invalid choice. Aborting.")
 		return
