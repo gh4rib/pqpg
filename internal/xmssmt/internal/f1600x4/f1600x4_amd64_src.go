@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 // AVX2 fourway parallelized KeccaK-f[1600].

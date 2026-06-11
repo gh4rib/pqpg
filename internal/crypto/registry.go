@@ -24,6 +24,12 @@ func (r *Registry) GetXOF(name string) (XOF, error) {
 		return &sha2Adapter{}, nil
 	case "KangarooTwelve":
 		return &k12Adapter{}, nil
+	case "Skein-256":
+		return &skeinAdapter{variant: "Skein-256"}, nil
+	case "Skein-512":
+		return &skeinAdapter{variant: "Skein-512"}, nil
+	case "Skein-1024":
+		return &skeinAdapter{variant: "Skein-1024"}, nil
 	default:
 		return nil, fmt.Errorf("hash/XOF primitive not found: %s", name)
 	}
@@ -49,13 +55,21 @@ func (r *Registry) GetAEAD(name string) (AEAD, error) {
 
 // ValidateSuite ensures the chosen cryptographic combinations strictly adhere to valid primitives.
 func (r *Registry) ValidateSuite(kemSuite, dsaSuite, symSuite, hashSuite string) bool {
-	if _, err := r.GetXOF(hashSuite); err != nil { return false }
-	if _, err := r.GetKEM(kemSuite); err != nil { return false }
-	if _, err := r.GetAEAD(symSuite); err != nil { return false }
-	
+	if _, err := r.GetXOF(hashSuite); err != nil {
+		return false
+	}
+	if _, err := r.GetKEM(kemSuite); err != nil {
+		return false
+	}
+	if _, err := r.GetAEAD(symSuite); err != nil {
+		return false
+	}
+
 	_, errDSA := r.GetDSA(dsaSuite)
 	_, errStateful := r.GetStatefulDSA(dsaSuite)
 	// If it fails BOTH the stateless and stateful checks, it's invalid
-	if errDSA != nil && errStateful != nil { return false }
+	if errDSA != nil && errStateful != nil {
+		return false
+	}
 	return true
 }

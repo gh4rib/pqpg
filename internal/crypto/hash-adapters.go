@@ -1,13 +1,17 @@
 package crypto
 
 import (
+	"crypto/sha512"
 	"hash"
 	"io"
 
-	"crypto/sha512"
-
 	"github.com/cloudflare/circl/xof/k12"
 	"golang.org/x/crypto/sha3"
+
+	// SKEIN NATIVE IMPORTS (Separated by Block Size)
+	"github.com/gh4rib/pqpg/internal/skein"
+	"github.com/gh4rib/pqpg/internal/skein/skein1024"
+	"github.com/gh4rib/pqpg/internal/skein/skein256"
 )
 
 // ---------------------------------------------------------
@@ -194,4 +198,62 @@ func (k *k12Adapter) Derive(input []byte, outputSize int) []byte {
 func (k *k12Adapter) NewWriter() io.Writer {
 	k.init()
 	return k.hasher
+}
+
+// ---------------------------------------------------------
+// Skein Adapter (UBI Chaining / Threefish Core)
+// ---------------------------------------------------------
+type skeinAdapter struct {
+	variant string
+	hasher  hash.Hash
+}
+
+func (s *skeinAdapter) Name() string { return s.variant }
+
+func (s *skeinAdapter) init() {
+	if s.hasher == nil {
+		switch s.variant {
+		case "Skein-256":
+			// Uses the native New constructor: 32 bytes = 256 bits
+			s.hasher = skein256.New(32, nil)
+		case "Skein-1024":
+			// Uses the native New constructor: 128 bytes = 1024 bits
+			s.hasher = skein1024.New(128, nil)
+		default:
+			// Skein-512 is the default recommended standard
+			s.hasher = skein.New512(nil)
+		}
+	}
+}
+
+func (s *skeinAdapter) Write(p []byte) (n int, err error) {
+	s.init()
+	return s.hasher.Write(p)
+}
+
+func (s *skeinAdapter) Derive(input []byte, outputSize int) []byte {
+	s.init()
+	if len(input) > 0 {
+		s.hasher.Write(input)
+	}
+
+	h := s.hasher.Sum(nil)
+	out := make([]byte, outputSize)
+
+	if outputSize <= len(h) {
+		copy(out, h)
+	} else {
+		// Securely stretch entropy for massive keys (e.g. Threefish-1024 keys)
+		shake := sha3.NewShake256()
+		shake.Write(h)
+		shake.Read(out)
+	}
+
+	s.hasher = nil // Reset state
+	return out
+}
+
+func (s *skeinAdapter) NewWriter() io.Writer {
+	s.init()
+	return s.hasher
 }
