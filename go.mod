@@ -3,6 +3,7 @@ module github.com/gh4rib/pqpg
 go 1.26
 
 require (
+	github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1
 	github.com/algorand/falcon v0.1.0
 	github.com/cespare/xxhash v1.1.0
 	github.com/cloudflare/circl v1.6.3

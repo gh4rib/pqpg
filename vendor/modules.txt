@@ -1,3 +1,7 @@
+# github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1
+## explicit
+github.com/aead/cmac
+github.com/aead/cmac/aes
 # github.com/algorand/falcon v0.1.0
 ## explicit; go 1.16
 github.com/algorand/falcon
@@ -236,6 +240,7 @@ github.com/rs/zerolog/internal/json
 ## explicit; go 1.17
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/assert/yaml
+github.com/stretchr/testify/require
 # github.com/templexxx/cpu v0.1.1
 ## explicit
 github.com/templexxx/cpu

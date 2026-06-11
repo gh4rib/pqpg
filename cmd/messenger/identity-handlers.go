@@ -89,8 +89,26 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	fmt.Println(" 37) X-Wing LMS Balanced   [X-Wing       | LMS_H15_W4                | ChaCha20 | SHA3-512]")
 	fmt.Println(" 38) Fast LMS Compact      [ML-KEM-1024  | LMS_H10_W8                | AES-GCM  | SHA3-512]")
 	fmt.Println(" 39) Fast LMS Balanced     [X-Wing       | LMS_H10_W4                | ChaCha20 | SHA3-512]")
+	fmt.Println("\n --- EXTENDED NONCE (24-BYTE COLLISION RESISTANT) ---")
+	fmt.Println(" 40) XAES NIST Level 5     [ML-KEM-1024  | ML-DSA-87          | XAES-GCM | SHA3-512]")
+	fmt.Println(" 41) XAES Conservative     [FrodoKEM-640 | ML-DSA-87          | XAES-GCM | SHAKE256]")
+	fmt.Println(" 42) XAES Hybrid Max       [X-Wing       | EdDilithium3       | XAES-GCM | SHA3-512]")
+	fmt.Println(" 43) XChaCha NIST Level 5  [ML-KEM-1024  | ML-DSA-87          | XChaCha  | SHA3-512]")
+	fmt.Println(" 44) XChaCha Conservative  [FrodoKEM-640 | SLH-DSA-SHAKE-256s | XChaCha  | SHAKE256]")
+	fmt.Println(" 45) XChaCha Hybrid Max    [X-Wing       | EdDilithium3       | XChaCha  | SHA3-512]")
+	fmt.Println("\n --- MISUSE-RESISTANT / DETERMINISTIC AEAD ---")
+	fmt.Println(" 46) GCM-SIV NIST Level 5  [ML-KEM-1024  | ML-DSA-87          | GCM-SIV  | SHA3-512]")
+	fmt.Println(" 47) GCM-SIV Conservative  [FrodoKEM-640 | SLH-DSA-SHAKE-256s | GCM-SIV  | SHAKE256]")
+	fmt.Println(" 48) GCM-SIV Hybrid Max    [X-Wing       | EdDilithium3       | GCM-SIV  | SHA3-512]")
+	fmt.Println(" 49) SIV-CMAC NIST Level 5 [ML-KEM-1024  | ML-DSA-87          | SIV-CMAC | SHA3-512]")
+	fmt.Println(" 50) SIV-CMAC Conservative [FrodoKEM-640 | SLH-DSA-SHAKE-256s | SIV-CMAC | SHAKE256]")
+	fmt.Println(" 51) SIV-CMAC Hybrid Max   [X-Wing       | EdDilithium3       | SIV-CMAC | SHA3-512]")
+	fmt.Println(" 52) Deoxys-II NIST L5     [ML-KEM-1024  | ML-DSA-87          | Deoxys-II | SHA3-512]")
+	fmt.Println(" 53) Deoxys-II Conserv.    [FrodoKEM-640 | SLH-DSA-SHAKE-256s | Deoxys-II | SHAKE256]")
+	fmt.Println(" 54) Deoxys-II Hybrid Max  [X-Wing       | EdDilithium3       | Deoxys-II | SHA3-512]")
+	fmt.Println(" 55) Deoxys-II Stateful    [X-Wing       | XMSSMT-SHA2_60/12  | Deoxys-II | SHA3-512]")
 	fmt.Println("=========================================================================================")
-	fmt.Print("Choice [1-39]: ")
+	fmt.Print("Choice [1-55]: ")
 
 	profChoice := readInput(reader)
 
@@ -174,6 +192,38 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 		kem, dsa, aead, xof = "ML-KEM-1024", "LMS_H10_W8", "AES-256-GCM", "SHA3-512"
 	case "39":
 		kem, dsa, aead, xof = "X-Wing", "LMS_H10_W4", "ChaCha20-Poly1305", "SHA3-512"
+	case "40":
+		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "XAES-256-GCM", "SHA3-512"
+	case "41":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "ML-DSA-87", "XAES-256-GCM", "SHAKE256"
+	case "42":
+		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "XAES-256-GCM", "SHA3-512"
+	case "43":
+		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "XChaCha20-Poly1305", "SHA3-512"
+	case "44":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "SLH-DSA-SHAKE-256s", "XChaCha20-Poly1305", "SHAKE256"
+	case "45":
+		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "XChaCha20-Poly1305", "SHA3-512"
+	case "46":
+		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "AES-256-GCM-SIV", "SHA3-512"
+	case "47":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "SLH-DSA-SHAKE-256s", "AES-256-GCM-SIV", "SHAKE256"
+	case "48":
+		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "AES-256-GCM-SIV", "SHA3-512"
+	case "49":
+		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "AES-256-SIV-CMAC", "SHA3-512"
+	case "50":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "SLH-DSA-SHAKE-256s", "AES-256-SIV-CMAC", "SHAKE256"
+	case "51":
+		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "AES-256-SIV-CMAC", "SHA3-512"
+	case "52":
+		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "Deoxys-II-256-128", "SHA3-512"
+	case "53":
+		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "SLH-DSA-SHAKE-256s", "Deoxys-II-256-128", "SHAKE256"
+	case "54":
+		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "Deoxys-II-256-128", "SHA3-512"
+	case "55":
+		kem, dsa, aead, xof = "X-Wing", "XMSSMT-SHA2_60/12_512", "Deoxys-II-256-128", "SHA3-512"
 	default:
 		fmt.Println("[-] Invalid choice. Aborting.")
 		return

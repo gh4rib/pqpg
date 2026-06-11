@@ -43,7 +43,6 @@ func showCoreMenu(reader *bufio.Reader) {
 		fmt.Println("\n --- Zero-Knowledge Proof of Breach (Data Notary) ---")
 		fmt.Println(" 21) Generate a Zero-Knowledge Proof of Data (Data Notary)")
 		fmt.Println(" 22) Verify a Zero-Knowledge Proof of Data")
-		fmt.Println(" 23) Test liboqs")
 		fmt.Println("\n --- SYSTEM ---")
 		fmt.Println(" 99) Exit")
 		fmt.Println("===========================================================================")
@@ -96,8 +95,6 @@ func showCoreMenu(reader *bufio.Reader) {
 			handleDataNotaryProve(reader)
 		case "22":
 			handleDataNotaryVerify(reader)
-		case "23":
-			handleOQSDiagnostics()
 		case "99":
 			fmt.Println("[*] Returning to the engine chooser menu.")
 			return

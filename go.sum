@@ -1,5 +1,7 @@
 github.com/OneOfOne/xxhash v1.2.2 h1:KMrpdQIwFcEqXDklaen+P1axHaj9BSKzvpUUfnHldSE=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
+github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1 h1:+JkXLHME8vLJafGhOH4aoV2Iu8bR55nU6iKMVfYVLjY=
+github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1/go.mod h1:nuudZmJhzWtx2212z+pkuy7B6nkBqa+xwNXZHL1j8cg=
 github.com/algorand/falcon v0.1.0 h1:xl832kfZ7hHG6B4p90DQynjfKFGbIUgUOnsRiMZXfAo=
 github.com/algorand/falcon v0.1.0/go.mod h1:OkQyHlGvS0kLNcIWbC21/uQcnbfwSOQm+wiqWwBG9pQ=
 github.com/bits-and-blooms/bitset v1.24.5 h1:654xBVHc23gJMAgOTkPNoCVfiRxuIOAUnAZFtopqJ4w=
