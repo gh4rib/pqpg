@@ -9,6 +9,7 @@ PQPG operates as an **Asynchronous Secure Messenger (Sealed Sender Transport Lay
 ## Core Features & Security Guarantees
 
 * **Hybrid Cryptography & Crypto-Agility:** Natively supports composite algorithms like `X-Wing` (X25519 + ML-KEM-768) and `EdDilithium`. Every database and network protocol dynamically inherits the user's chosen Keccak (XOF) and AEAD suite, eliminating hardcoded downgrade vulnerabilities.
+* **Unified Wide-Block Architecture (Pure Skein):** Integrates the massive Threefish tweakable block cipher (up to 1024-bit block sizes) with the Skein hash function. This creates an ultra-conservative, unified cryptographic core immune to Grover's algorithm and future classical cryptanalysis, utilizing native Encrypt-then-MAC (EtM) processing for enormous payloads.
 * **Misuse-Resistant & Extended-Nonce AEADs:** The Double Ratchet and Vault architectures natively integrate CAESAR-winning **Deoxys-II**, RFC 8452 **AES-GCM-SIV**, and extended 24-byte nonce stream ciphers (**XChaCha20**, **XAES-GCM**). This mathematically eliminates the risk of nonce-reuse attacks, state-desynchronization leakage, and birthday-bound collisions on massive payloads.
 * **Stateful Post-Quantum Root Identities (LMS/XMSS):** Fully supports FIPS 205 Hash-Based Signatures for highly secure, failsafe software release engineering, powered natively by a statically linked Open Quantum Safe (`liboqs`) C library.
 * **Intelligent Directory Archiving:** Seamlessly detects and bundles raw directories into highly compressed `.tar.gz` archives on the fly before routing them through the post-quantum encryption engine, preserving complex file tree structures natively without requiring third-party zip tools.
@@ -41,8 +42,8 @@ PQPG manages Perfect Forward Secrecy and Post-Compromise Security using a highly
 | **KEM (Key Encapsulation)** | `ML-KEM-768`, `ML-KEM-1024`, `Kyber768`, `Kyber1024`, `FrodoKEM-640`, `X-Wing` (Hybrid) |
 | **DSA (Stateless Signatures)** | `ML-DSA-65`, `ML-DSA-87`, `Dilithium2/3/5`, `EdDilithium2/3` (Hybrid), `SLH-DSA` |
 | **Stateful DSA (FIPS 205)** | `LMS_H5` -> `LMS_H25`, `XMSS`, `XMSSMT` (Via natively linked `liboqs`) |
-| **AEAD (Symmetric Ciphers)** | `AES-256-GCM`, `ChaCha20-Poly1305`, `XAES-256-GCM`, `XChaCha20-Poly1305`, `AES-256-GCM-SIV`, `AES-256-SIV-CMAC`, `Deoxys-II-256-128`, `Ascon-128`, `Ascon-128a` |
-| **XOF / Hashing** | `SHAKE128`, `SHAKE256`, `SHA3-256/384/512`, `SHA-512`, `KangarooTwelve` |
+| **AEAD (Symmetric Ciphers)** | `AES-256-GCM`, `ChaCha20-Poly1305`, `XAES-256-GCM`, `XChaCha20-Poly1305`, `AES-256-GCM-SIV`, `AES-256-SIV-CMAC`, `Deoxys-II-256-128`, `Ascon-128`, `Ascon-128a`, `Threefish-256-EtM`, `Threefish-512-EtM`, `Threefish-1024-EtM` |
+| **XOF / Hashing** | `SHAKE128`, `SHAKE256`, `SHA3-256/384/512`, `SHA-512`, `KangarooTwelve`, `Skein-256`, `Skein-512`, `Skein-1024` |
 | **Zero-Knowledge Primitives** | `Groth16` (zk-SNARK), `BN254` Pairing-Friendly Curve, `MiMC` (Sponge-Hash) |
 
 ---
@@ -67,6 +68,8 @@ pqc-messenger/
 │   ├── deoxysii/                 # CAESAR-Winning Misuse-Resistant AEAD (MRAE)
 │   ├── aesgcmsiv-noasm/          # RFC 8452 AES-GCM-SIV (Pure Go / Cross-Platform)
 │   ├── aesgcmsiv-asm/            # AES-SIV-CMAC (Deterministic Hardware Accelerated)
+│   ├── threefish/                # Tweakable Wide-Block Cipher Engine (256/512/1024)
+│   ├── skein/                    # UBI Chaining Mode Hashing & XOF Engine
 │   ├── oqs/                      # Hardcoded Open Quantum Safe C-FFI Wrappers
 │   │   ├── oqs.go                # Static linkage hooks (-lcrypto stripped for portability)
 │   │   └── cfuncs.go
@@ -85,7 +88,6 @@ pqc-messenger/
 ├── go.mod
 └── go.sum
 
-
 ```
 
 ---
@@ -103,6 +105,7 @@ pqc-messenger/
 To utilize FIPS 205 Stateful Signatures without trapping users in shared-library (`.so`) dependency hell, PQPG explicitly requires compiling `liboqs` as a static archive (`.a`) with OpenSSL disabled. This guarantees maximum cross-platform binary portability.
 
 ```bash
+cd pqpg
 # Clone the upstream Open Quantum Safe repository
 git clone -b main https://github.com/open-quantum-safe/liboqs.git
 cd liboqs
@@ -125,27 +128,11 @@ ninja
 ninja install
 cd ../..
 
-
 ```
 
 ### Phase 2: Build the PQPG Executable
 
-Once the `oqs_static_env` is successfully built, go to the `internal/oqs` and change the `cgo LDFLAGS` and `cgo CFLAGS` to the corresponding path.
-
-```bash
-# Clone the PQPG repository alongside the liboqs folder
-git clone https://github.com/gh4rib/pqpg-cloudflare-circl.git
-cd pqpg-cloudflare-circl
-
-# Download Go dependencies
-go mod tidy
-
-# Compile the binary with CGO explicitly enabled to bridge the C-FFI
-export CGO_ENABLED=1
-go build -o pqpg ./cmd/messenger
-
-
-```
+Once the `oqs_static_env` is successfully built, go to the `internal/oqs` and change the `cgo LDFLAGS` and `cgo CFLAGS` to the corresponding path inside ``cfuncs.go`` and ``oqs.go``.
 
 ---
 
@@ -203,6 +190,12 @@ Threshold cryptography and Feldman VSS operations rely on the `go.dedis.ch/kyber
 **ConsenSys gnark**
 The zero-knowledge SNARK ecosystem, circuit compilation, and R1CS Groth16 proving/verifying mechanisms are powered entirely by the high-performance `gnark` framework.
 
+**Skein & Threefish**
+The wide-block cryptographic primitives are based on the Skein hash function family designed by Bruce Schneier, Niels Ferguson, Stefan Lucks, Doug Whiting, Mihir Bellare, Tadayoshi Kohno, Jon Callas, and Jesse Walker. Implemented via Go adaptations.
+
+**Multiple packages from github.com/aead developed by Andreas Auernhammer**
+The serpent and some other packages.
+
 ---
 
 ## License & Third-Party Code
@@ -218,4 +211,5 @@ Faz-Hernandez, A. and Kwiatkowski, K. (2019). *Introducing CIRCL: An Advanced Cr
 > 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
 > 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
 > 
->
+> 
+
