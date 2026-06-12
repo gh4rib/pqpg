@@ -54,10 +54,11 @@ func handleDetachedSign(reader *bufio.Reader) {
 	defer inFile.Close()
 
 	fmt.Println("\nSelect Cryptographic Hashing Algorithm:")
-	fmt.Println(" 1) SHA-512       (Strongest SHA-2)")
-	fmt.Println(" 2) SHA3-512      (Strongest SHA-3)")
-	fmt.Println(" 3) SHAKE256      (Strongest Keccak XOF)")
+	fmt.Println(" 1) SHA-512        (Strongest SHA-2)")
+	fmt.Println(" 2) SHA3-512       (Strongest SHA-3)")
+	fmt.Println(" 3) SHAKE256       (Strongest Keccak XOF)")
 	fmt.Println(" 4) KangarooTwelve (High-Speed Parallel Keccak)")
+	fmt.Println(" 5) BLAKE3         (Strongest BLAKE3)")
 	fmt.Print("Choice [1-4]: ")
 	hashChoice := readInput(reader)
 
@@ -71,6 +72,8 @@ func handleDetachedSign(reader *bufio.Reader) {
 		hashAlgo = "SHAKE256"
 	case "4":
 		hashAlgo = "KangarooTwelve"
+	case "5":
+		hashAlgo = "BLAKE3-512"
 	default:
 		fmt.Println("[-] Invalid selection. Aborting.")
 		return

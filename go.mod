@@ -31,6 +31,7 @@ require (
 	github.com/katzenpost/sphincsplus v0.0.2
 	github.com/katzenpost/sqisign/bindings/go v0.0.0-20260520215053-47e926d8264d
 	github.com/klauspost/compress v1.18.6
+	github.com/klauspost/cpuid/v2 v2.0.12
 	github.com/liyue201/goqr v0.0.0-20200803022322-df443203d4ea
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multihash v0.2.3
@@ -43,7 +44,9 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0
 	github.com/stretchr/testify v1.11.1
 	github.com/templexxx/xorsimd v0.4.4
+	github.com/zeebo/assert v1.1.0
 	github.com/zeebo/blake3 v0.2.4
+	github.com/zeebo/pcg v1.0.1
 	gitlab.com/elixxir/bloomfilter v0.0.1
 	gitlab.com/elixxir/primitives v0.0.4
 	gitlab.com/yawning/nyquist.git v0.0.0-20260416084751-ff6b11fb427f
@@ -60,7 +63,6 @@ require (
 	github.com/badoux/checkmail v1.2.1 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/katzenpost/hpqc v0.0.4-0.20240208043333-a3612ffc463b // indirect
-	github.com/klauspost/cpuid/v2 v2.0.12 // indirect
 	github.com/mattn/go-pointer v0.0.1 // indirect
 	github.com/oasisprotocol/deoxysii v0.0.0-20220228165953-2091330c22b7 // indirect
 	github.com/ttacon/builder v0.0.0-20170518171403-c099f663e1c2 // indirect

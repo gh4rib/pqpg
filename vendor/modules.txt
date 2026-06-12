@@ -477,6 +477,9 @@ github.com/ttacon/libphonenumber
 # github.com/x448/float16 v0.8.4
 ## explicit; go 1.11
 github.com/x448/float16
+# github.com/zeebo/assert v1.1.0
+## explicit; go 1.13
+github.com/zeebo/assert
 # github.com/zeebo/blake3 v0.2.4
 ## explicit; go 1.18
 github.com/zeebo/blake3
@@ -489,6 +492,9 @@ github.com/zeebo/blake3/internal/alg/hash/hash_avx2
 github.com/zeebo/blake3/internal/alg/hash/hash_pure
 github.com/zeebo/blake3/internal/consts
 github.com/zeebo/blake3/internal/utils
+# github.com/zeebo/pcg v1.0.1
+## explicit; go 1.13
+github.com/zeebo/pcg
 # gitlab.com/elixxir/bloomfilter v0.0.1
 ## explicit; go 1.12
 gitlab.com/elixxir/bloomfilter

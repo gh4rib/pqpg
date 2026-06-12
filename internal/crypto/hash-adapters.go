@@ -8,6 +8,7 @@ import (
 	"github.com/cloudflare/circl/xof/k12"
 	"golang.org/x/crypto/sha3"
 
+	"github.com/gh4rib/pqpg/internal/blake3"
 	// SKEIN NATIVE IMPORTS (Separated by Block Size)
 	"github.com/gh4rib/pqpg/internal/skein"
 	"github.com/gh4rib/pqpg/internal/skein/skein1024"
@@ -256,4 +257,47 @@ func (s *skeinAdapter) Derive(input []byte, outputSize int) []byte {
 func (s *skeinAdapter) NewWriter() io.Writer {
 	s.init()
 	return s.hasher
+}
+
+// ---------------------------------------------------------
+// BLAKE3 Adapter (Native XOF & KDF)
+// ---------------------------------------------------------
+
+type blake3Adapter struct {
+	hasher *blake3.Hasher
+}
+
+func (b *blake3Adapter) Name() string { return "BLAKE3" }
+
+func (b *blake3Adapter) init() {
+	if b.hasher == nil {
+		b.hasher = blake3.New()
+	}
+}
+
+func (b *blake3Adapter) Write(p []byte) (n int, err error) {
+	b.init()
+	return b.hasher.Write(p)
+}
+
+func (b *blake3Adapter) Derive(input []byte, outputSize int) []byte {
+	b.init()
+	if len(input) > 0 {
+		_, _ = b.hasher.Write(input)
+	}
+
+	// The "Strongest" Usage: Native XOF Stream
+	// We use the Digest() reader to natively squeeze out EXACTLY outputSize bytes.
+	// This eliminates the need for the SHAKE256 entropy-stretching fallback.
+	d := b.hasher.Digest()
+	out := make([]byte, outputSize)
+	_, _ = d.Read(out)
+
+	b.hasher = nil // Reset state to ensure Ratchet KDF remains isolated
+	return out
+}
+
+func (b *blake3Adapter) NewWriter() io.Writer {
+	b.init()
+	return b.hasher
 }

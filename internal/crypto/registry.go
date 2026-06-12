@@ -30,6 +30,8 @@ func (r *Registry) GetXOF(name string) (XOF, error) {
 		return &skeinAdapter{variant: "Skein-512"}, nil
 	case "Skein-1024":
 		return &skeinAdapter{variant: "Skein-1024"}, nil
+	case "BLAKE3-512":
+		return &blake3Adapter{}, nil
 	default:
 		return nil, fmt.Errorf("hash/XOF primitive not found: %s", name)
 	}

@@ -48,10 +48,10 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	fmt.Println(" --- NIST FIPS STANDARDS ---")
 	fmt.Println("  1) NIST Level 3 Standard [ML-KEM-768   | ML-DSA-65          | AES-256-GCM  | SHAKE256]")
 	fmt.Println("  2) NIST Level 5 Maximum  [ML-KEM-1024  | ML-DSA-87          | AES-256-GCM  | SHA3-512]")
-	fmt.Println("  3) FIPS L5 Alternative   [ML-KEM-1024  | ML-DSA-87          | ChaCha20-Poly1305 | SHAKE256]")
-	fmt.Println("  4) FIPS Hash-Failsafe    [ML-KEM-1024  | SLH-DSA-SHA2-256s  | AES-256-GCM  | SHA3-512]")
+	fmt.Println("  3) FIPS L5 Alternative   [ML-KEM-1024  | ML-DSA-87          | ChaCha20-Poly1305 | KangarooTwelve]")
+	fmt.Println("  4) FIPS Hash-Failsafe    [ML-KEM-1024  | SLH-DSA-SHA2-256s  | AES-256-GCM  | BLAKE3-512")
 	fmt.Println("\n --- CONSERVATIVE / PRE-STANDARD ---")
-	fmt.Println("  5) Conservative L5       [Kyber1024    | Dilithium5         | AES-256-GCM  | SHA3-512]")
+	fmt.Println("  5) Conservative L5       [Kyber1024    | Dilithium5         | AES-256-GCM  | BLAKE3-512]")
 	fmt.Println("  6) High-Margin Lattice   [FrodoKEM-640 | ML-DSA-87          | AES-256-GCM  | SHAKE256]")
 	fmt.Println("  7) Ultimate Paranoia     [FrodoKEM-640 | SLH-DSA-SHAKE-256s | ChaCha20-Poly1305 | SHA3-512]")
 	fmt.Println("\n --- HYBRID (CLASSICAL + POST-QUANTUM) ---")
@@ -61,57 +61,57 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	fmt.Println("\n --- FALCON-1024 (FAST FOURIER LATTICE) ---")
 	fmt.Println(" 11) ML-KEM + Falcon       [ML-KEM-1024  | Falcon-1024        | AES-256-GCM  | SHA3-512]")
 	fmt.Println(" 12) Frodo + Falcon        [FrodoKEM-640 | Falcon-1024        | ChaCha20-Poly1305 | SHAKE256]")
-	fmt.Println(" 13) Hybrid X-Wing + Falcon[X-Wing       | Falcon-1024        | AES-256-GCM  | SHA3-512]")
+	fmt.Println(" 13) Hybrid X-Wing + Falcon[X-Wing       | Falcon-1024        | AES-256-GCM  | BLAKE3-512]")
 	fmt.Println("\n --- STATEFUL HASH-BASED (RELEASE ENGINEER) ---")
-	fmt.Println(" 14) Absolute Max SHA2     [ML-KEM-1024  | XMSSMT-SHA2_60/12_512     | AES-256-GCM  | SHA3-512]")
-	fmt.Println(" 15) Absolute Max SHAKE    [ML-KEM-1024  | XMSSMT-SHAKE256_60/12_512 | ChaCha20-Poly1305 | SHA3-512]")
+	fmt.Println(" 14) Absolute Max SHA2     [ML-KEM-1024  | XMSSMT-SHA2_60/12_512     | AES-256-GCM  | KangarooTwelve]")
+	fmt.Println(" 15) Absolute Max SHAKE    [ML-KEM-1024  | XMSSMT-SHAKE256_60/12_512 | ChaCha20-Poly1305 | BLAKE3-512]")
 	fmt.Println(" 16) Conservative Lattice  [FrodoKEM-640 | XMSSMT-SHA2_40/8_512      | AES-256-GCM  | SHAKE256]")
 	fmt.Println(" 17) Pure Sponge L-Free    [FrodoKEM-640 | XMSSMT-SHAKE256_40/8_512  | ChaCha20-Poly1305 | SHAKE256]")
 	fmt.Println(" 18) Hybrid Max SHA2       [X-Wing       | XMSSMT-SHA2_60/6_256      | AES-256-GCM  | SHA3-512]")
-	fmt.Println(" 19) Hybrid Max SHAKE      [X-Wing       | XMSSMT-SHAKE256_60/6_256  | ChaCha20-Poly1305 | SHA3-512]")
+	fmt.Println(" 19) Hybrid Max SHAKE      [X-Wing       | XMSSMT-SHAKE256_60/6_256  | ChaCha20-Poly1305 | BLAKE3-512]")
 	fmt.Println(" 20) Single-Tree SHA2      [ML-KEM-1024  | XMSS-SHA2_20_512          | AES-256-GCM  | SHA3-512]")
-	fmt.Println(" 21) Single-Tree SHAKE     [X-Wing       | XMSS-SHAKE256_20_512      | ChaCha20-Poly1305 | SHA3-512]")
+	fmt.Println(" 21) Single-Tree SHAKE     [X-Wing       | XMSS-SHAKE256_20_512      | ChaCha20-Poly1305 | KangarooTwelve]")
 	fmt.Println("\n --- LEIGHTON-MICALI (LMS) MAXIMUM SECRECY ---")
-	fmt.Println(" 22) Max LMS Compact       [ML-KEM-1024  | LMS_H25_W8                | AES-256-GCM  | SHA3-512]")
+	fmt.Println(" 22) Max LMS Compact       [ML-KEM-1024  | LMS_H25_W8                | AES-256-GCM  | KangarooTwelve]")
 	fmt.Println(" 23) Max LMS Balanced      [ML-KEM-1024  | LMS_H25_W4                | ChaCha20-Poly1305 | SHA3-512]")
 	fmt.Println(" 24) Frodo LMS Compact     [FrodoKEM-640 | LMS_H25_W8                | AES-256-GCM  | SHAKE256]")
 	fmt.Println(" 25) Frodo LMS Balanced    [FrodoKEM-640 | LMS_H20_W4                | ChaCha20-Poly1305 | SHAKE256]")
 	fmt.Println(" 26) X-Wing LMS Compact    [X-Wing       | LMS_H25_W8                | AES-256-GCM  | SHA3-512]")
 	fmt.Println(" 27) X-Wing LMS Balanced   [X-Wing       | LMS_H20_W4                | ChaCha20-Poly1305 | SHA3-512]")
-	fmt.Println(" 28) Fast LMS Compact      [ML-KEM-1024  | LMS_H20_W8                | AES-256-GCM  | SHA3-512]")
+	fmt.Println(" 28) Fast LMS Compact      [ML-KEM-1024  | LMS_H20_W8                | AES-256-GCM  | BLAKE3-512]")
 	fmt.Println(" 29) Fast LMS Balanced     [X-Wing       | LMS_H20_W4                | ChaCha20-Poly1305 | SHA3-512]")
 	fmt.Println(" 30) Max LMS Compact       [ML-KEM-1024  | LMS_H15_W8                | AES-256-GCM  | SHA3-512]")
 	fmt.Println(" 31) Max LMS Balanced      [ML-KEM-1024  | LMS_H15_W4                | ChaCha20-Poly1305 | SHA3-512]")
 	fmt.Println(" 32) Frodo LMS Compact     [FrodoKEM-640 | LMS_H10_W8                | AES-256-GCM  | SHAKE256]")
 	fmt.Println(" 33) Frodo LMS Balanced    [FrodoKEM-640 | LMS_H15_W4                | ChaCha20-Poly1305 | SHAKE256]")
-	fmt.Println(" 34) X-Wing LMS Compact    [X-Wing       | LMS_H10_W8                | AES-256-GCM  | SHA3-512]")
-	fmt.Println(" 35) X-Wing LMS Balanced   [X-Wing       | LMS_H15_W4                | ChaCha20-Poly1305 | SHA3-512]")
+	fmt.Println(" 34) X-Wing LMS Compact    [X-Wing       | LMS_H10_W8                | AES-256-GCM  | BLAKE3-512]")
+	fmt.Println(" 35) X-Wing LMS Balanced   [X-Wing       | LMS_H15_W4                | ChaCha20-Poly1305 | KangarooTwelve]")
 	fmt.Println(" 36) Fast LMS Compact      [ML-KEM-1024  | LMS_H10_W8                | AES-256-GCM  | SHA3-512]")
 	fmt.Println(" 37) Fast LMS Balanced     [X-Wing       | LMS_H10_W4                | ChaCha20-Poly1305 | SHA3-512]")
 	fmt.Println("\n --- EXTENDED NONCE (24-BYTE COLLISION RESISTANT) ---")
 	fmt.Println(" 38) XAES NIST Level 5     [ML-KEM-1024  | ML-DSA-87          | XAES-256-GCM | SHA3-512]")
 	fmt.Println(" 39) XAES Conservative     [FrodoKEM-640 | ML-DSA-87          | XAES-256-GCM | SHAKE256]")
-	fmt.Println(" 40) XAES Hybrid Max       [X-Wing       | EdDilithium3       | XAES-256-GCM | SHA3-512]")
+	fmt.Println(" 40) XAES Hybrid Max       [X-Wing       | EdDilithium3       | XAES-256-GCM | BLAKE3-512]")
 	fmt.Println(" 41) XChaCha NIST Level 5  [ML-KEM-1024  | ML-DSA-87          | XChaCha-Poly1305  | SHA3-512]")
 	fmt.Println(" 42) XChaCha Conservative  [FrodoKEM-640 | SLH-DSA-SHAKE-256s | XChaCha-Poly1305  | SHAKE256]")
-	fmt.Println(" 43) XChaCha Hybrid Max    [X-Wing       | EdDilithium3       | XChaCha-Poly1305  | SHA3-512]")
+	fmt.Println(" 43) XChaCha Hybrid Max    [X-Wing       | EdDilithium3       | XChaCha-Poly1305  | BLAKE3-512]")
 	fmt.Println("\n --- MISUSE-RESISTANT / DETERMINISTIC AEAD ---")
-	fmt.Println(" 44) GCM-SIV NIST Level 5  [ML-KEM-1024  | ML-DSA-87          | AES-256-GCM-SIV  | SHA3-512]")
+	fmt.Println(" 44) GCM-SIV NIST Level 5  [ML-KEM-1024  | ML-DSA-87          | AES-256-GCM-SIV  | KangarooTwelve]")
 	fmt.Println(" 45) GCM-SIV Conservative  [FrodoKEM-640 | SLH-DSA-SHAKE-256s | AES-256-GCM-SIV  | SHAKE256]")
-	fmt.Println(" 46) GCM-SIV Hybrid Max    [X-Wing       | EdDilithium3       | AES-256-GCM-SIV  | SHA3-512]")
+	fmt.Println(" 46) GCM-SIV Hybrid Max    [X-Wing       | EdDilithium3       | AES-256-GCM-SIV  | BLAKE3-512]")
 	fmt.Println(" 47) SIV-CMAC NIST Level 5 [ML-KEM-1024  | ML-DSA-87          | AES-256-SIV-CMAC | SHA3-512]")
 	fmt.Println(" 48) SIV-CMAC Conservative [FrodoKEM-640 | SLH-DSA-SHAKE-256s | AES-256-SIV-CMAC | SHAKE256]")
 	fmt.Println(" 49) SIV-CMAC Hybrid Max   [X-Wing       | EdDilithium3       | AES-256-SIV-CMAC | SHA3-512]")
-	fmt.Println(" 50) Deoxys-II NIST L5     [ML-KEM-1024  | ML-DSA-87          | Deoxys-II-256-128 | SHA3-512]")
+	fmt.Println(" 50) Deoxys-II NIST L5     [ML-KEM-1024  | ML-DSA-87          | Deoxys-II-256-128 | KangarooTwelve]")
 	fmt.Println(" 51) Deoxys-II Conserv.    [FrodoKEM-640 | SLH-DSA-SHAKE-256s | Deoxys-II-256-128 | SHAKE256]")
-	fmt.Println(" 52) Deoxys-II Hybrid Max  [X-Wing       | EdDilithium3       | Deoxys-II-256-128 | SHA3-512]")
+	fmt.Println(" 52) Deoxys-II Hybrid Max  [X-Wing       | EdDilithium3       | Deoxys-II-256-128 | BLAKE3-512]")
 	fmt.Println(" 53) Deoxys-II Stateful    [X-Wing       | XMSSMT-SHA2_60/12  | Deoxys-II-256-128 | SHA3-512]")
 	fmt.Println("\n --- SOVEREIGN / ISO STANDARDS (FEISTEL NETWORK) ---")
-	fmt.Println(" 54) Camellia NIST L5      [ML-KEM-1024  | ML-DSA-87          | Camellia-EtM | SHA3-512]")
+	fmt.Println(" 54) Camellia NIST L5      [ML-KEM-1024  | ML-DSA-87          | Camellia-EtM | BLAKE3-512]")
 	fmt.Println(" 55) Camellia Conserv.     [FrodoKEM-640 | SLH-DSA-SHAKE-256s | Camellia-EtM | SHAKE256]")
 	fmt.Println(" 56) Camellia Hybrid Max   [X-Wing       | EdDilithium3       | Camellia-EtM | SHA3-512]")
 	fmt.Println("\n --- ULTRA-CONSERVATIVE FORTRESS (MAXIMUM STRUCTURAL SECURITY) ---")
-	fmt.Println(" 57) Serpent NIST L5       [ML-KEM-1024  | ML-DSA-87          | Serpent-EtM  | SHA3-512]")
+	fmt.Println(" 57) Serpent NIST L5       [ML-KEM-1024  | ML-DSA-87          | Serpent-EtM  | BLAKE3-512]")
 	fmt.Println(" 58) Serpent Conserv.      [FrodoKEM-640 | SLH-DSA-SHAKE-256s | Serpent-EtM  | SHAKE256]")
 	fmt.Println(" 59) Serpent Hybrid Max    [X-Wing       | EdDilithium3       | Serpent-EtM  | SHA3-512]")
 	fmt.Println("\n --- MASSIVE WIDE-BLOCK CIPHERS (SKEIN/THREEFISH) ---")
@@ -119,7 +119,7 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	fmt.Println(" 61) Threefish-512 Conserv.[FrodoKEM-640 | SLH-DSA-SHAKE-256s | Threefish-512-EtM | SHAKE256]")
 	fmt.Println(" 62) Threefish-1024 Max    [X-Wing       | EdDilithium3       | Threefish-1024-EtM  | KangarooTwelve]")
 	fmt.Println("\n --- NIST LIGHTWEIGHT CRYPTOGRAPHY WINNER (LWC) ---")
-	fmt.Println(" 63) Ascon-128a Fast       [ML-KEM-768   | ML-DSA-65          | Ascon-128a    | SHAKE128]")
+	fmt.Println(" 63) Ascon-128a Fast       [ML-KEM-768   | ML-DSA-65          | Ascon-128a    | BLAKE3-512]")
 	fmt.Println(" 64) Ascon-128 Standard    [ML-KEM-1024  | ML-DSA-87          | Ascon-128     | SHAKE256]")
 	fmt.Println(" 65) Ascon-80pq Grover     [X-Wing       | EdDilithium3       | Ascon-80pq    | SHA3-512]")
 	fmt.Println(" 66) Pure Sponge/Keccak    [ML-KEM-1024  | SLH-DSA-SHAKE-256f | Ascon-80pq    | KangarooTwelve]")
@@ -140,11 +140,11 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	case "2":
 		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "AES-256-GCM", "SHA3-512"
 	case "3":
-		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "ChaCha20-Poly1305", "SHAKE256"
+		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "ChaCha20-Poly1305", "KangarooTwelve"
 	case "4":
 		kem, dsa, aead, xof = "ML-KEM-1024", "SLH-DSA-SHA2-256s", "AES-256-GCM", "SHA3-512"
 	case "5":
-		kem, dsa, aead, xof = "Kyber1024", "Dilithium5", "AES-256-GCM", "SHA3-512"
+		kem, dsa, aead, xof = "Kyber1024", "Dilithium5", "AES-256-GCM", "BLAKE3-512"
 	case "6":
 		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "ML-DSA-87", "AES-256-GCM", "SHAKE256"
 	case "7":
@@ -160,11 +160,11 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	case "12":
 		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "Falcon-1024", "ChaCha20-Poly1305", "SHAKE256"
 	case "13":
-		kem, dsa, aead, xof = "X-Wing", "Falcon-1024", "AES-256-GCM", "SHA3-512"
+		kem, dsa, aead, xof = "X-Wing", "Falcon-1024", "AES-256-GCM", "BLAKE3-512"
 	case "14":
-		kem, dsa, aead, xof = "ML-KEM-1024", "XMSSMT-SHA2_60/12_512", "AES-256-GCM", "SHA3-512"
+		kem, dsa, aead, xof = "ML-KEM-1024", "XMSSMT-SHA2_60/12_512", "AES-256-GCM", "KangarooTwelve"
 	case "15":
-		kem, dsa, aead, xof = "ML-KEM-1024", "XMSSMT-SHAKE256_60/12_512", "ChaCha20-Poly1305", "SHA3-512"
+		kem, dsa, aead, xof = "ML-KEM-1024", "XMSSMT-SHAKE256_60/12_512", "ChaCha20-Poly1305", "BLAKE3-512"
 	case "16":
 		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "XMSSMT-SHA2_40/8_512", "AES-256-GCM", "SHAKE256"
 	case "17":
@@ -172,13 +172,13 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	case "18":
 		kem, dsa, aead, xof = "X-Wing", "XMSSMT-SHA2_60/6_256", "AES-256-GCM", "SHA3-512"
 	case "19":
-		kem, dsa, aead, xof = "X-Wing", "XMSSMT-SHAKE256_60/6_256", "ChaCha20-Poly1305", "SHA3-512"
+		kem, dsa, aead, xof = "X-Wing", "XMSSMT-SHAKE256_60/6_256", "ChaCha20-Poly1305", "BLAKE3-512"
 	case "20":
 		kem, dsa, aead, xof = "ML-KEM-1024", "XMSS-SHA2_20_512", "AES-256-GCM", "SHA3-512"
 	case "21":
-		kem, dsa, aead, xof = "X-Wing", "XMSS-SHAKE256_20_512", "ChaCha20-Poly1305", "SHA3-512"
+		kem, dsa, aead, xof = "X-Wing", "XMSS-SHAKE256_20_512", "ChaCha20-Poly1305", "KangarooTwelve"
 	case "22":
-		kem, dsa, aead, xof = "ML-KEM-1024", "LMS_H25_W8", "AES-256-GCM", "SHA3-512"
+		kem, dsa, aead, xof = "ML-KEM-1024", "LMS_H25_W8", "AES-256-GCM", "KangarooTwelve"
 	case "23":
 		kem, dsa, aead, xof = "ML-KEM-1024", "LMS_H25_W4", "ChaCha20-Poly1305", "SHA3-512"
 	case "24":
@@ -190,7 +190,7 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	case "27":
 		kem, dsa, aead, xof = "X-Wing", "LMS_H20_W4", "ChaCha20-Poly1305", "SHA3-512"
 	case "28":
-		kem, dsa, aead, xof = "ML-KEM-1024", "LMS_H20_W8", "AES-256-GCM", "SHA3-512"
+		kem, dsa, aead, xof = "ML-KEM-1024", "LMS_H20_W8", "AES-256-GCM", "BLAKE3-512"
 	case "29":
 		kem, dsa, aead, xof = "X-Wing", "LMS_H20_W4", "ChaCha20-Poly1305", "SHA3-512"
 	case "30":
@@ -202,9 +202,9 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	case "33":
 		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "LMS_H15_W4", "ChaCha20-Poly1305", "SHAKE256"
 	case "34":
-		kem, dsa, aead, xof = "X-Wing", "LMS_H10_W8", "AES-256-GCM", "SHA3-512"
+		kem, dsa, aead, xof = "X-Wing", "LMS_H10_W8", "AES-256-GCM", "BLAKE3-512"
 	case "35":
-		kem, dsa, aead, xof = "X-Wing", "LMS_H15_W4", "ChaCha20-Poly1305", "SHA3-512"
+		kem, dsa, aead, xof = "X-Wing", "LMS_H15_W4", "ChaCha20-Poly1305", "KangarooTwelve"
 	case "36":
 		kem, dsa, aead, xof = "ML-KEM-1024", "LMS_H10_W8", "AES-256-GCM", "SHA3-512"
 	case "37":
@@ -214,19 +214,19 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	case "39":
 		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "ML-DSA-87", "XAES-256-GCM", "SHAKE256"
 	case "40":
-		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "XAES-256-GCM", "SHA3-512"
+		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "XAES-256-GCM", "BLAKE3-512"
 	case "41":
 		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "XChaCha20-Poly1305", "SHA3-512"
 	case "42":
 		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "SLH-DSA-SHAKE-256s", "XChaCha20-Poly1305", "SHAKE256"
 	case "43":
-		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "XChaCha20-Poly1305", "SHA3-512"
+		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "XChaCha20-Poly1305", "BLAKE3-512]"
 	case "44":
-		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "AES-256-GCM-SIV", "SHA3-512"
+		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "AES-256-GCM-SIV", "KangarooTwelve"
 	case "45":
 		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "SLH-DSA-SHAKE-256s", "AES-256-GCM-SIV", "SHAKE256"
 	case "46":
-		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "AES-256-GCM-SIV", "SHA3-512"
+		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "AES-256-GCM-SIV", "BLAKE3-512"
 	case "47":
 		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "AES-256-SIV-CMAC", "SHA3-512"
 	case "48":
@@ -234,21 +234,21 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	case "49":
 		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "AES-256-SIV-CMAC", "SHA3-512"
 	case "50":
-		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "Deoxys-II-256-128", "SHA3-512"
+		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "Deoxys-II-256-128", "KangarooTwelve"
 	case "51":
 		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "SLH-DSA-SHAKE-256s", "Deoxys-II-256-128", "SHAKE256"
 	case "52":
-		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "Deoxys-II-256-128", "SHA3-512"
+		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "Deoxys-II-256-128", "BLAKE3-512"
 	case "53":
 		kem, dsa, aead, xof = "X-Wing", "XMSSMT-SHA2_60/12_512", "Deoxys-II-256-128", "SHA3-512"
 	case "54":
-		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "Camellia-256-EtM", "SHA3-512"
+		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "Camellia-256-EtM", "BLAKE3-512"
 	case "55":
 		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "SLH-DSA-SHAKE-256s", "Camellia-256-EtM", "SHAKE256"
 	case "56":
 		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "Camellia-256-EtM", "SHA3-512"
 	case "57":
-		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "Serpent-256-EtM", "SHA3-512"
+		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "Serpent-256-EtM", "BLAKE3-512"
 	case "58":
 		kem, dsa, aead, xof = "FrodoKEM-640-SHAKE", "SLH-DSA-SHAKE-256s", "Serpent-256-EtM", "SHAKE256"
 	case "59":
@@ -260,7 +260,7 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	case "62":
 		kem, dsa, aead, xof = "X-Wing", "EdDilithium3", "Threefish-1024-EtM", "KangarooTwelve"
 	case "63":
-		kem, dsa, aead, xof = "ML-KEM-768", "ML-DSA-65", "Ascon-128a", "SHAKE128"
+		kem, dsa, aead, xof = "ML-KEM-768", "ML-DSA-65", "Ascon-128a", "BLAKE3-512"
 	case "64":
 		kem, dsa, aead, xof = "ML-KEM-1024", "ML-DSA-87", "Ascon-128", "SHAKE256"
 	case "65":
