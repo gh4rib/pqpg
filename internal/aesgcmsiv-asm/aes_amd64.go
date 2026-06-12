@@ -1,3 +1,4 @@
+//go:build amd64 && !gccgo && !appengine
 // +build amd64,!gccgo,!appengine
 
 package siv

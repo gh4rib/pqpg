@@ -1,10 +1,82 @@
+# codeberg.org/vula/highctidh v1.0.2025051200
+## explicit; go 1.19
+codeberg.org/vula/highctidh/src/ctidh1024
+codeberg.org/vula/highctidh/src/ctidh2048
+codeberg.org/vula/highctidh/src/ctidh511
+codeberg.org/vula/highctidh/src/ctidh512
+# filippo.io/edwards25519 v1.1.1
+## explicit; go 1.20
+filippo.io/edwards25519
+filippo.io/edwards25519/field
+# filippo.io/mldsa v0.0.0-20260215214346-43d0283efc3e
+## explicit; go 1.25.0
+filippo.io/mldsa
+filippo.io/mldsa/internal/byteorder
+filippo.io/mldsa/internal/constanttime
+filippo.io/mldsa/internal/fips140
+filippo.io/mldsa/internal/fips140/mldsa
+filippo.io/mldsa/mldsacrypto
+# filippo.io/mlkem768 v0.0.0-20260214141301-2e7bebc7d88d
+## explicit; go 1.25.0
+filippo.io/mlkem768
+filippo.io/mlkem768/xwing
+# git.xx.network/elixxir/ctidh_cgo v0.0.1
+## explicit; go 1.16
+git.xx.network/elixxir/ctidh_cgo
+# github.com/Max-Sum/base32768 v0.0.0-20230304063302-18e6ce5945fd
+## explicit; go 1.12
+github.com/Max-Sum/base32768
+# github.com/ProtonMail/go-crypto v1.4.1-proton
+## explicit; go 1.23.0
+github.com/ProtonMail/go-crypto/bitcurves
+github.com/ProtonMail/go-crypto/brainpool
+github.com/ProtonMail/go-crypto/eax
+github.com/ProtonMail/go-crypto/internal/byteutil
+github.com/ProtonMail/go-crypto/ocb
+github.com/ProtonMail/go-crypto/openpgp
+github.com/ProtonMail/go-crypto/openpgp/aes/keywrap
+github.com/ProtonMail/go-crypto/openpgp/armor
+github.com/ProtonMail/go-crypto/openpgp/clearsign
+github.com/ProtonMail/go-crypto/openpgp/ecdh
+github.com/ProtonMail/go-crypto/openpgp/ecdsa
+github.com/ProtonMail/go-crypto/openpgp/ed25519
+github.com/ProtonMail/go-crypto/openpgp/ed448
+github.com/ProtonMail/go-crypto/openpgp/eddsa
+github.com/ProtonMail/go-crypto/openpgp/elgamal
+github.com/ProtonMail/go-crypto/openpgp/errors
+github.com/ProtonMail/go-crypto/openpgp/internal/algorithm
+github.com/ProtonMail/go-crypto/openpgp/internal/ecc
+github.com/ProtonMail/go-crypto/openpgp/internal/ecc/curve25519
+github.com/ProtonMail/go-crypto/openpgp/internal/ecc/curve25519/field
+github.com/ProtonMail/go-crypto/openpgp/internal/encoding
+github.com/ProtonMail/go-crypto/openpgp/mldsa_eddsa
+github.com/ProtonMail/go-crypto/openpgp/mlkem_ecdh
+github.com/ProtonMail/go-crypto/openpgp/packet
+github.com/ProtonMail/go-crypto/openpgp/s2k
+github.com/ProtonMail/go-crypto/openpgp/symmetric
+github.com/ProtonMail/go-crypto/openpgp/v2
+github.com/ProtonMail/go-crypto/openpgp/x25519
+github.com/ProtonMail/go-crypto/openpgp/x448
+# github.com/ProtonMail/gopenpgp/v3 v3.4.1-proton
+## explicit; go 1.23.0
+github.com/ProtonMail/gopenpgp/v3/armor
+github.com/ProtonMail/gopenpgp/v3/constants
+github.com/ProtonMail/gopenpgp/v3/crypto
+github.com/ProtonMail/gopenpgp/v3/internal
+github.com/ProtonMail/gopenpgp/v3/profile
 # github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1
 ## explicit
 github.com/aead/cmac
 github.com/aead/cmac/aes
+# github.com/agl/gcmsiv v0.0.0-20190418185415-e8dcd2f151dc
+## explicit
+github.com/agl/gcmsiv
 # github.com/algorand/falcon v0.1.0
 ## explicit; go 1.16
 github.com/algorand/falcon
+# github.com/badoux/checkmail v1.2.1
+## explicit; go 1.14
+github.com/badoux/checkmail
 # github.com/bits-and-blooms/bitset v1.24.5
 ## explicit; go 1.16
 github.com/bits-and-blooms/bitset
@@ -17,7 +89,13 @@ github.com/cespare/xxhash
 # github.com/cloudflare/circl v1.6.3
 ## explicit; go 1.22.0
 github.com/cloudflare/circl/cipher/ascon
+github.com/cloudflare/circl/dh/sidh
+github.com/cloudflare/circl/dh/sidh/internal/common
+github.com/cloudflare/circl/dh/sidh/internal/p434
+github.com/cloudflare/circl/dh/sidh/internal/p503
+github.com/cloudflare/circl/dh/sidh/internal/p751
 github.com/cloudflare/circl/dh/x25519
+github.com/cloudflare/circl/dh/x448
 github.com/cloudflare/circl/ecc/goldilocks
 github.com/cloudflare/circl/internal/conv
 github.com/cloudflare/circl/internal/sha3
@@ -198,6 +276,23 @@ github.com/go-audio/riff
 # github.com/go-audio/wav v1.1.0
 ## explicit; go 1.13
 github.com/go-audio/wav
+# github.com/go-faster/xor v1.0.0
+## explicit; go 1.15
+github.com/go-faster/xor
+# github.com/goccy/go-json v0.10.6
+## explicit; go 1.19
+github.com/goccy/go-json
+github.com/goccy/go-json/internal/decoder
+github.com/goccy/go-json/internal/encoder
+github.com/goccy/go-json/internal/encoder/vm
+github.com/goccy/go-json/internal/encoder/vm_color
+github.com/goccy/go-json/internal/encoder/vm_color_indent
+github.com/goccy/go-json/internal/encoder/vm_indent
+github.com/goccy/go-json/internal/errors
+github.com/goccy/go-json/internal/runtime
+# github.com/golang/protobuf v1.5.4
+## explicit; go 1.17
+github.com/golang/protobuf/proto
 # github.com/google/pprof v0.0.0-20260604005048-7023385849c0
 ## explicit; go 1.24.0
 github.com/google/pprof/profile
@@ -207,6 +302,85 @@ github.com/hashicorp/errwrap
 # github.com/hashicorp/go-multierror v1.1.1
 ## explicit; go 1.13
 github.com/hashicorp/go-multierror
+# github.com/katzenpost/chacha20 v0.0.1
+## explicit; go 1.23.0
+github.com/katzenpost/chacha20
+github.com/katzenpost/chacha20/internal/api
+github.com/katzenpost/chacha20/internal/hardware
+github.com/katzenpost/chacha20/internal/ref
+# github.com/katzenpost/chacha20poly1305 v0.0.1
+## explicit; go 1.23.0
+github.com/katzenpost/chacha20poly1305
+# github.com/katzenpost/circl v1.3.8
+## explicit; go 1.19
+github.com/katzenpost/circl/dh/x448
+github.com/katzenpost/circl/ecc/goldilocks
+github.com/katzenpost/circl/internal/conv
+github.com/katzenpost/circl/internal/nist
+github.com/katzenpost/circl/internal/sha3
+github.com/katzenpost/circl/kem
+github.com/katzenpost/circl/kem/frodo/frodo640shake
+github.com/katzenpost/circl/kem/kyber/kyber768
+github.com/katzenpost/circl/kem/mceliece/internal
+github.com/katzenpost/circl/kem/mceliece/mceliece348864
+github.com/katzenpost/circl/kem/mceliece/mceliece348864f
+github.com/katzenpost/circl/kem/mceliece/mceliece460896
+github.com/katzenpost/circl/kem/mceliece/mceliece460896f
+github.com/katzenpost/circl/kem/mceliece/mceliece6688128
+github.com/katzenpost/circl/kem/mceliece/mceliece6688128f
+github.com/katzenpost/circl/kem/mceliece/mceliece6960119
+github.com/katzenpost/circl/kem/mceliece/mceliece6960119f
+github.com/katzenpost/circl/kem/mceliece/mceliece8192128
+github.com/katzenpost/circl/kem/mceliece/mceliece8192128f
+github.com/katzenpost/circl/math
+github.com/katzenpost/circl/math/fp25519
+github.com/katzenpost/circl/math/fp448
+github.com/katzenpost/circl/math/gf2e12
+github.com/katzenpost/circl/math/gf2e13
+github.com/katzenpost/circl/math/mlsbset
+github.com/katzenpost/circl/pke/kyber/internal/common
+github.com/katzenpost/circl/pke/kyber/internal/common/params
+github.com/katzenpost/circl/pke/kyber/kyber768
+github.com/katzenpost/circl/pke/kyber/kyber768/internal
+github.com/katzenpost/circl/sign
+github.com/katzenpost/circl/sign/dilithium/internal/common
+github.com/katzenpost/circl/sign/dilithium/internal/common/params
+github.com/katzenpost/circl/sign/dilithium/mode2
+github.com/katzenpost/circl/sign/dilithium/mode2/internal
+github.com/katzenpost/circl/sign/dilithium/mode3
+github.com/katzenpost/circl/sign/dilithium/mode3/internal
+github.com/katzenpost/circl/sign/ed25519
+github.com/katzenpost/circl/sign/ed448
+github.com/katzenpost/circl/sign/eddilithium2
+github.com/katzenpost/circl/sign/eddilithium3
+github.com/katzenpost/circl/simd/keccakf1600
+# github.com/katzenpost/falcon v0.1.0
+## explicit; go 1.26.2
+github.com/katzenpost/falcon/padded1024
+github.com/katzenpost/falcon/padded512
+# github.com/katzenpost/hpqc v0.0.4-0.20240208043333-a3612ffc463b
+## explicit; go 1.20
+github.com/katzenpost/hpqc/kem
+github.com/katzenpost/hpqc/kem/pem
+github.com/katzenpost/hpqc/sign
+github.com/katzenpost/hpqc/util
+# github.com/katzenpost/sntrup4591761 v0.0.0-20231024131303-8755eb1986b8
+## explicit; go 1.13
+github.com/katzenpost/sntrup4591761
+github.com/katzenpost/sntrup4591761/r3
+github.com/katzenpost/sntrup4591761/r3/mod3
+github.com/katzenpost/sntrup4591761/r3/vector
+github.com/katzenpost/sntrup4591761/rq
+github.com/katzenpost/sntrup4591761/rq/modq
+github.com/katzenpost/sntrup4591761/rq/vector
+github.com/katzenpost/sntrup4591761/zx
+# github.com/katzenpost/sphincsplus v0.0.2
+## explicit; go 1.22.0
+github.com/katzenpost/sphincsplus/ref
+github.com/katzenpost/sphincsplus/ref/params
+# github.com/katzenpost/sqisign/bindings/go v0.0.0-20260520215053-47e926d8264d
+## explicit; go 1.25.0
+github.com/katzenpost/sqisign/bindings/go/sqisign
 # github.com/klauspost/compress v1.18.6
 ## explicit; go 1.24
 github.com/klauspost/compress
@@ -217,18 +391,49 @@ github.com/klauspost/compress/internal/le
 github.com/klauspost/compress/internal/snapref
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
+# github.com/klauspost/cpuid/v2 v2.0.12
+## explicit; go 1.15
+github.com/klauspost/cpuid/v2
+# github.com/liyue201/goqr v0.0.0-20200803022322-df443203d4ea
+## explicit; go 1.12
+github.com/liyue201/goqr
 # github.com/mattn/go-colorable v0.1.15
 ## explicit; go 1.18
 github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.22
 ## explicit; go 1.21
 github.com/mattn/go-isatty
+# github.com/mattn/go-pointer v0.0.1
+## explicit
+github.com/mattn/go-pointer
+# github.com/mitchellh/go-homedir v1.1.0
+## explicit
+github.com/mitchellh/go-homedir
+# github.com/multiformats/go-multihash v0.2.3
+## explicit; go 1.19
+github.com/multiformats/go-multihash/core
 # github.com/nightlyone/lockfile v1.0.0
 ## explicit; go 1.11
 github.com/nightlyone/lockfile
+# github.com/oasisprotocol/deoxysii v0.0.0-20220228165953-2091330c22b7
+## explicit; go 1.16
+github.com/oasisprotocol/deoxysii
+github.com/oasisprotocol/deoxysii/internal/api
+github.com/oasisprotocol/deoxysii/internal/ct32
+github.com/oasisprotocol/deoxysii/internal/ct64
+github.com/oasisprotocol/deoxysii/internal/ext/aes/ct32
+github.com/oasisprotocol/deoxysii/internal/ext/aes/ct64
+github.com/oasisprotocol/deoxysii/internal/hardware
+# github.com/pkg/errors v0.9.1
+## explicit
+github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 ## explicit
 github.com/pmezard/go-difflib/difflib
+# github.com/rcarback/go-bip39 v1.1.1
+## explicit; go 1.14
+github.com/rcarback/go-bip39
+github.com/rcarback/go-bip39/wordlists
 # github.com/ronanh/intcomp v1.1.1
 ## explicit; go 1.19
 github.com/ronanh/intcomp
@@ -237,6 +442,21 @@ github.com/ronanh/intcomp
 github.com/rs/zerolog
 github.com/rs/zerolog/internal/cbor
 github.com/rs/zerolog/internal/json
+# github.com/sethvargo/go-diceware v0.5.0
+## explicit; go 1.22
+github.com/sethvargo/go-diceware/diceware
+# github.com/shurlinet/go-hqc v0.1.1
+## explicit; go 1.26
+github.com/shurlinet/go-hqc
+github.com/shurlinet/go-hqc/internal/shake
+# github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
+## explicit; go 1.13
+github.com/skip2/go-qrcode
+github.com/skip2/go-qrcode/bitset
+github.com/skip2/go-qrcode/reedsolomon
+# github.com/spf13/jwalterweatherman v1.1.0
+## explicit
+github.com/spf13/jwalterweatherman
 # github.com/stretchr/testify v1.11.1
 ## explicit; go 1.17
 github.com/stretchr/testify/assert
@@ -248,9 +468,53 @@ github.com/templexxx/cpu
 # github.com/templexxx/xorsimd v0.4.4
 ## explicit; go 1.19
 github.com/templexxx/xorsimd
+# github.com/ttacon/builder v0.0.0-20170518171403-c099f663e1c2
+## explicit
+github.com/ttacon/builder
+# github.com/ttacon/libphonenumber v1.2.1
+## explicit
+github.com/ttacon/libphonenumber
 # github.com/x448/float16 v0.8.4
 ## explicit; go 1.11
 github.com/x448/float16
+# github.com/zeebo/blake3 v0.2.4
+## explicit; go 1.18
+github.com/zeebo/blake3
+github.com/zeebo/blake3/internal/alg
+github.com/zeebo/blake3/internal/alg/compress
+github.com/zeebo/blake3/internal/alg/compress/compress_pure
+github.com/zeebo/blake3/internal/alg/compress/compress_sse41
+github.com/zeebo/blake3/internal/alg/hash
+github.com/zeebo/blake3/internal/alg/hash/hash_avx2
+github.com/zeebo/blake3/internal/alg/hash/hash_pure
+github.com/zeebo/blake3/internal/consts
+github.com/zeebo/blake3/internal/utils
+# gitlab.com/elixxir/bloomfilter v0.0.1
+## explicit; go 1.12
+gitlab.com/elixxir/bloomfilter
+# gitlab.com/elixxir/primitives v0.0.4
+## explicit; go 1.19
+gitlab.com/elixxir/primitives/fact
+gitlab.com/elixxir/primitives/format
+# gitlab.com/yawning/bsaes.git v0.0.0-20190805113838-0a714cd429ec
+## explicit; go 1.12
+gitlab.com/yawning/bsaes.git
+gitlab.com/yawning/bsaes.git/ct32
+gitlab.com/yawning/bsaes.git/ct64
+gitlab.com/yawning/bsaes.git/ghash
+gitlab.com/yawning/bsaes.git/internal/modes
+# gitlab.com/yawning/nyquist.git v0.0.0-20260416084751-ff6b11fb427f
+## explicit; go 1.25.0
+gitlab.com/yawning/nyquist.git
+gitlab.com/yawning/nyquist.git/cipher
+gitlab.com/yawning/nyquist.git/dh
+gitlab.com/yawning/nyquist.git/hash
+gitlab.com/yawning/nyquist.git/pattern
+# gitlab.com/yawning/x448.git v0.0.0-20221003101044-617eb9b7d9b7
+## explicit; go 1.16
+gitlab.com/yawning/x448.git
+gitlab.com/yawning/x448.git/internal/field
+gitlab.com/yawning/x448.git/internal/toolchain
 # go.dedis.ch/fixbuf v1.0.3
 ## explicit
 go.dedis.ch/fixbuf
@@ -276,12 +540,17 @@ go.etcd.io/bbolt/internal/freelist
 golang.org/x/crypto/argon2
 golang.org/x/crypto/blake2b
 golang.org/x/crypto/blake2s
+golang.org/x/crypto/cast5
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/chacha20poly1305
 golang.org/x/crypto/cryptobyte
 golang.org/x/crypto/cryptobyte/asn1
+golang.org/x/crypto/curve25519
+golang.org/x/crypto/hkdf
 golang.org/x/crypto/internal/alias
 golang.org/x/crypto/internal/poly1305
+golang.org/x/crypto/pbkdf2
+golang.org/x/crypto/poly1305
 golang.org/x/crypto/sha3
 # golang.org/x/image v0.41.0
 ## explicit; go 1.25.0
@@ -301,6 +570,47 @@ golang.org/x/sync/errgroup
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
+# google.golang.org/grpc v1.81.1
+## explicit; go 1.25.0
+google.golang.org/grpc/attributes
+google.golang.org/grpc/credentials
+google.golang.org/grpc/grpclog
+google.golang.org/grpc/grpclog/internal
+google.golang.org/grpc/internal/credentials
+google.golang.org/grpc/internal/envconfig
+# google.golang.org/protobuf v1.36.11
+## explicit; go 1.23
+google.golang.org/protobuf/encoding/prototext
+google.golang.org/protobuf/encoding/protowire
+google.golang.org/protobuf/internal/descfmt
+google.golang.org/protobuf/internal/descopts
+google.golang.org/protobuf/internal/detrand
+google.golang.org/protobuf/internal/editiondefaults
+google.golang.org/protobuf/internal/editionssupport
+google.golang.org/protobuf/internal/encoding/defval
+google.golang.org/protobuf/internal/encoding/messageset
+google.golang.org/protobuf/internal/encoding/tag
+google.golang.org/protobuf/internal/encoding/text
+google.golang.org/protobuf/internal/errors
+google.golang.org/protobuf/internal/filedesc
+google.golang.org/protobuf/internal/filetype
+google.golang.org/protobuf/internal/flags
+google.golang.org/protobuf/internal/genid
+google.golang.org/protobuf/internal/impl
+google.golang.org/protobuf/internal/order
+google.golang.org/protobuf/internal/pragma
+google.golang.org/protobuf/internal/protolazy
+google.golang.org/protobuf/internal/set
+google.golang.org/protobuf/internal/strs
+google.golang.org/protobuf/internal/version
+google.golang.org/protobuf/proto
+google.golang.org/protobuf/reflect/protodesc
+google.golang.org/protobuf/reflect/protoreflect
+google.golang.org/protobuf/reflect/protoregistry
+google.golang.org/protobuf/runtime/protoiface
+google.golang.org/protobuf/runtime/protoimpl
+google.golang.org/protobuf/types/descriptorpb
+google.golang.org/protobuf/types/gofeaturespb
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3

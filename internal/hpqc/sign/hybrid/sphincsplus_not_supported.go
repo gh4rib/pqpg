@@ -1,0 +1,12 @@
+//go:build windows
+
+// SPDX-FileCopyrightText: (c) 2024 David Stainton
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package hybrid
+
+import "github.com/gh4rib/pqpg/internal/hpqc/sign"
+
+var Ed25519Sphincs sign.Scheme = nil
+var Ed25519SphincsLegacy sign.Scheme = nil
+var Ed448Sphincs sign.Scheme = nil

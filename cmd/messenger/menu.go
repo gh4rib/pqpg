@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"fmt"
+
+	openpgp_pqc "github.com/gh4rib/pqpg/internal/openpgp-pqc"
 )
 
 func showCoreMenu(reader *bufio.Reader) {
@@ -126,6 +128,55 @@ func showOQSMenu(reader *bufio.Reader) {
 			return
 		default:
 			fmt.Println("[-] Invalid option. Please select a valid number from the menu.")
+		}
+	}
+}
+
+func showOpenPGPMenu(reader *bufio.Reader) {
+	engine := openpgp_pqc.NewEngine()
+
+	for {
+		fmt.Println("\n===========================================================================")
+		fmt.Println("         OPENPGP COMPATIBILITY ENGINE (draft-ietf-openpgp-pqc)             ")
+		fmt.Println("===========================================================================")
+		fmt.Println(" --- IDENTITY MANAGEMENT ---")
+		fmt.Println("  1) Generate OpenPGP Key (Standard: Kyber768 + Dilithium3)")
+		fmt.Println("  2) Generate OpenPGP Key (High Security: Kyber1024 + Dilithium5)")
+		fmt.Println("\n --- ASYNCHRONOUS MESSAGING ---")
+		fmt.Println("  3) Encrypt & Sign File")
+		fmt.Println("  4) Decrypt & Verify File")
+		fmt.Println("\n --- SPECIALIZED SIGNATURES ---")
+		fmt.Println("  5) Create Cleartext Signed Message")
+		fmt.Println("  6) Verify Cleartext Signed Message")
+		fmt.Println("  7) Create Detached Signature (.sig)")
+		fmt.Println("  8) Verify Detached Signature")
+		fmt.Println("\n 99) Return to Main Engine Selection")
+		fmt.Println("===========================================================================")
+		fmt.Print("Select an option: ")
+
+		choice := readInput(reader)
+
+		switch choice {
+		case "1":
+			handlePGPGenerateKey(reader, engine, false)
+		case "2":
+			handlePGPGenerateKey(reader, engine, true)
+		case "3":
+			handlePGPEncryptSign(reader, engine)
+		case "4":
+			handlePGPDecryptVerify(reader, engine)
+		case "5":
+			handlePGPCleartextSign(reader, engine)
+		case "6":
+			handlePGPCleartextVerify(reader, engine)
+		case "7":
+			handlePGPDetachedSign(reader, engine)
+		case "8":
+			handlePGPDetachedVerify(reader, engine)
+		case "99":
+			return
+		default:
+			fmt.Println("[-] Invalid selection.")
 		}
 	}
 }

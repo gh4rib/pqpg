@@ -1,3 +1,5 @@
+//go:build linux && amd64
+
 package oqs
 
 // C callbacks, DO NOT CHANGE
