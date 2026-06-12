@@ -35,7 +35,7 @@ func StatelessSeal(in io.Reader, out io.Writer, myKr *identity.Keyring, receiver
 	xof, _ := registry.GetXOF(receiverProf.XOFSuite)
 	xof.Write([]byte("PQPG-Stateless-MasterKey"))
 	xof.Write(ss)
-	messageKey := xof.Derive(nil, 32)
+	messageKey := xof.Derive(nil, 64)
 	defer crypto.Wipe(messageKey) // HYGIENE
 
 	aead, err := registry.GetAEAD(receiverProf.AEADSuite)
@@ -249,7 +249,7 @@ func StatelessOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionSt
 	xof, _ := registry.GetXOF(outer.OuterXOFSuite)
 	xof.Write([]byte("PQPG-Stateless-MasterKey"))
 	xof.Write(ss)
-	messageKey := xof.Derive(nil, 32)
+	messageKey := xof.Derive(nil, 64)
 	defer crypto.Wipe(messageKey)
 
 	aead, err := registry.GetAEAD(outer.OuterAEADSuite)

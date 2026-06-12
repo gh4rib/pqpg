@@ -6,18 +6,18 @@ import (
 
 	// Import BOTH the core engine (for constants/types) and your wrapper (for math)
 	"github.com/algorand/falcon"
-	myfalcon "github.com/gh4rib/pqpg/internal/falcon" 
+	myfalcon "github.com/gh4rib/pqpg/internal/falcon"
 )
 
 // falconAdapter bridges your custom wrapper to the PQPG abstract DSA interface.
 type falconAdapter struct{}
 
-// 1. Identity Method
+// Name Identity Method
 func (f *falconAdapter) Name() string {
 	return "Falcon-1024"
 }
 
-// 2. Sizing Methods (Pulled dynamically from the Algorand CGo constants)
+// PublicKeySize Sizing Methods (Pulled dynamically from the Algorand CGo constants)
 func (f *falconAdapter) PublicKeySize() int {
 	return falcon.PublicKeySize
 }
@@ -30,7 +30,7 @@ func (f *falconAdapter) SignatureSize() int {
 	return falcon.SignatureMaxSize // Falcon signatures are variable; we return the max bounds
 }
 
-// 3. Mathematical Methods
+// GenerateKeyPair Mathematical Methods
 func (f *falconAdapter) GenerateKeyPair() ([]byte, []byte, error) {
 	// Call your wrapper function natively (it auto-generates the 48-byte seed)
 	kp, err := myfalcon.GenerateKeyPair(nil)

@@ -1,6 +1,9 @@
 package crypto
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Registry struct{}
 
@@ -38,16 +41,64 @@ func (r *Registry) GetXOF(name string) (XOF, error) {
 }
 
 func (r *Registry) GetKEM(name string) (KEM, error) {
+	// 1. Intercept Custom Dynamic Hybrids (e.g., Hybrid-mceliece348864+X448)
+	if strings.HasPrefix(name, "Hybrid-") {
+		base := strings.TrimPrefix(name, "Hybrid-")
+		parts := strings.Split(base, "+")
+
+		if len(parts) == 2 {
+			pqName := parts[0]
+			curve := parts[1]
+
+			// This recursion seamlessly fetches the HPQC base algorithm
+			pqKEM, err := r.GetKEM(pqName)
+			if err != nil {
+				return nil, err
+			}
+			return &hybridKEMAdapter{pqKEM: pqKEM, eccCurve: curve}, nil
+		}
+	}
+
+	// 2. Intercept Native HPQC Primitives & HPQC Native Hybrids
+	// (This instantly supports "mceliece8192128-X25519" and "HQC-256-X448")
+	//if strings.HasPrefix(name, "HQC-") || strings.HasPrefix(name, "mceliece") || strings.HasPrefix(name, "sntrup") {
+	//	return GetHPQCKEM(name)
+	//}
+
+	// 3. Fallback to standard CIRCL KEM factory
 	return GetKEM(name)
 }
 
 func (r *Registry) GetDSA(name string) (DSA, error) {
-	// Intercept Falcon requests and route to our custom CGo adapter
+	// 1. Intercept Custom Dynamic Hybrids
+	if strings.HasPrefix(name, "Hybrid-") {
+		base := strings.TrimPrefix(name, "Hybrid-")
+		parts := strings.Split(base, "+")
+
+		if len(parts) == 2 {
+			pqName := parts[0]
+			curve := parts[1]
+
+			pqDSA, err := r.GetDSA(pqName)
+			if err != nil {
+				return nil, err
+			}
+			return &hybridDSAAdapter{pqDSA: pqDSA, eccCurve: curve}, nil
+		}
+	}
+
+	// 2. Intercept Native HPQC Primitives & Hybrids
+	// (Supports "Falcon-padded-512" and "Falcon-padded-1024-Ed25519")
+	//if strings.HasPrefix(name, "Falcon-padded-") {
+	//	return GetHPQCDSA(name)
+	//}
+
+	// 3. Intercept Raw Algorand Falcon
 	if name == "Falcon-1024" {
 		return &falconAdapter{}, nil
 	}
 
-	// Fall back to CIRCL for ML-DSA / Dilithium / SLH-DSA
+	// 4. Fall back to CIRCL for ML-DSA / Dilithium / SLH-DSA
 	return GetDSA(name)
 }
 
@@ -69,6 +120,7 @@ func (r *Registry) ValidateSuite(kemSuite, dsaSuite, symSuite, hashSuite string)
 
 	_, errDSA := r.GetDSA(dsaSuite)
 	_, errStateful := r.GetStatefulDSA(dsaSuite)
+
 	// If it fails BOTH the stateless and stateful checks, it's invalid
 	if errDSA != nil && errStateful != nil {
 		return false

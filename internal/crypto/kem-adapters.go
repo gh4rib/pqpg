@@ -17,12 +17,13 @@ type genericKEMAdapter struct {
 	scheme kem.Scheme
 }
 
-func (a *genericKEMAdapter) Name() string           { return a.name }
-func (a *genericKEMAdapter) PublicKeySize() int     { return a.scheme.PublicKeySize() }
-func (a *genericKEMAdapter) PrivateKeySize() int    { return a.scheme.PrivateKeySize() }
-func (a *genericKEMAdapter) CiphertextSize() int    { return a.scheme.CiphertextSize() }
+func (a *genericKEMAdapter) Name() string        { return a.name }
+func (a *genericKEMAdapter) PublicKeySize() int  { return a.scheme.PublicKeySize() }
+func (a *genericKEMAdapter) PrivateKeySize() int { return a.scheme.PrivateKeySize() }
+func (a *genericKEMAdapter) CiphertextSize() int { return a.scheme.CiphertextSize() }
+
 // FIXED: Matched to CIRCL's SharedKeySize method
-func (a *genericKEMAdapter) SharedKeySize() int     { return a.scheme.SharedKeySize() }
+func (a *genericKEMAdapter) SharedKeySize() int { return a.scheme.SharedKeySize() }
 
 func (a *genericKEMAdapter) GenerateKeyPair() ([]byte, []byte, error) {
 	pub, priv, err := a.scheme.GenerateKeyPair()
