@@ -42,7 +42,6 @@ func (r *Registry) GetXOF(name string) (XOF, error) {
 
 func (r *Registry) GetKEM(name string) (KEM, error) {
 	// 1. DYNAMIC COMBINER NAMESPACE
-	// Examples: "Hybrid-ML-KEM-1024+X448" or "Hybrid-Hpqc-mceliece8192128+X448"
 	if strings.HasPrefix(name, "Hybrid-") {
 		base := strings.TrimPrefix(name, "Hybrid-")
 		parts := strings.Split(base, "+")
@@ -51,7 +50,6 @@ func (r *Registry) GetKEM(name string) (KEM, error) {
 			pqName := parts[0]
 			curve := parts[1]
 
-			// Recurse to resolve the PQ half (which might be Hpqc- or CIRCL)
 			pqKEM, err := r.GetKEM(pqName)
 			if err != nil {
 				return nil, err
@@ -61,13 +59,18 @@ func (r *Registry) GetKEM(name string) (KEM, error) {
 	}
 
 	// 2. HPQC EXPLICIT NAMESPACE
-	// Examples: "Hpqc-HQC-256-X448" or "Hpqc-mceliece8192128"
 	if strings.HasPrefix(name, "Hpqc-") {
 		hpqcName := strings.TrimPrefix(name, "Hpqc-")
 		return GetHPQCKEM(hpqcName)
 	}
 
-	// 3. CIRCL DEFAULT NAMESPACE
+	// 3. OQS EXPLICIT NAMESPACE
+	if strings.HasPrefix(name, "Oqs-") {
+		oqsName := strings.TrimPrefix(name, "Oqs-")
+		return GetOQSKEM(oqsName)
+	}
+
+	// 4. CIRCL DEFAULT NAMESPACE
 	return GetKEM(name)
 }
 
@@ -90,18 +93,23 @@ func (r *Registry) GetDSA(name string) (DSA, error) {
 	}
 
 	// 2. HPQC EXPLICIT NAMESPACE
-	// Examples: "Hpqc-Falcon-padded-1024-Ed25519"
 	if strings.HasPrefix(name, "Hpqc-") {
 		hpqcName := strings.TrimPrefix(name, "Hpqc-")
 		return GetHPQCDSA(hpqcName)
 	}
 
-	// 3. PURE CGO FALCON INTERCEPT
+	// 3. OQS EXPLICIT NAMESPACE
+	if strings.HasPrefix(name, "Oqs-") {
+		oqsName := strings.TrimPrefix(name, "Oqs-")
+		return GetOQSDSA(oqsName)
+	}
+
+	// 4. PURE CGO FALCON INTERCEPT
 	if name == "Falcon-1024" {
 		return &falconAdapter{}, nil
 	}
 
-	// 4. CIRCL DEFAULT NAMESPACE
+	// 5. CIRCL DEFAULT NAMESPACE
 	return GetDSA(name)
 }
 

@@ -444,6 +444,12 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 		return
 	}
 
+	// Output logic for your keyring generator...
+	fmt.Printf("[*] KEM Selected:  %s\n", kem)
+	fmt.Printf("[*] DSA Selected:  %s\n", dsa)
+	fmt.Printf("[*] AEAD Selected: %s\n", aead)
+	fmt.Printf("[*] Hash Selected: %s\n", xof)
+
 	// THE PARANOIA IDENTITY PITCH ---
 	if strings.HasPrefix(dsa, "LMS") || strings.HasPrefix(dsa, "XMSS") {
 		fmt.Println("\n=====================================================================")
