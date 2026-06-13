@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gh4rib/pqpg/internal/hpqc/nike"
+	"github.com/gh4rib/pqpg/internal/hpqc/nike/x25519"
 	"github.com/gh4rib/pqpg/internal/hpqc/rand"
 	"github.com/gh4rib/pqpg/internal/hpqc/util"
-	"github.com/gh4rib/pqpg/internal/hpqc/nike/x25519"
 )
 
 func TestNIKEUnmarshaling(t *testing.T) {

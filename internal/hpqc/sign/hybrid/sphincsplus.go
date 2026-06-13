@@ -7,7 +7,7 @@
 package hybrid
 
 import (
-	"github.com/katzenpost/circl/sign/ed448"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/sign/ed448"
 
 	"github.com/gh4rib/pqpg/internal/hpqc/sign/circlsign"
 	"github.com/gh4rib/pqpg/internal/hpqc/sign/ed25519"

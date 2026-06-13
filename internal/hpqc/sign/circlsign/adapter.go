@@ -8,7 +8,7 @@ import (
 	"crypto"
 	"io"
 
-	circlSign "github.com/katzenpost/circl/sign"
+	circlSign "github.com/gh4rib/pqpg/internal/hpqc/circl/sign"
 
 	"github.com/gh4rib/pqpg/internal/hpqc/sign"
 )

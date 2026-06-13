@@ -257,4 +257,3 @@ func (p *PublicKey) MarshalBinary() ([]byte, error) {
 	}
 	return append(blob1, blob2...), nil
 }
-

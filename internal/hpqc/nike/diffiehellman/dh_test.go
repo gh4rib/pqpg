@@ -8,7 +8,7 @@ import (
 
 // TestPaddedBinaryEncode verifies that paddedBinaryEncode always returns
 // a fixed-size output even when the underlying big integer has leading
-// zero bytes. See https://github.com/katzenpost/hpqc/issues/39.
+// zero bytes. See https://github.com/gh4rib/pqpg/internal/hpqc/issues/39.
 func TestPaddedBinaryEncode(t *testing.T) {
 	s := Scheme()
 	group := s.group()

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: © 2025 Threebit Hacker
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package bacap provides the Blinded Cryptographic Capability system (BACAP).
 //
 // BACAP is the Blinded Cryptographic Capability system with
@@ -24,6 +27,13 @@
 //	to Bob, one per box, with Bob using a separate, second
 //	instance of the protocol to send messages to Alice.
 //
+// # Our paper
+//
+// Echomix: a Strong Anonymity System with Messaging
+//
+// https://arxiv.org/abs/2501.02933
+// https://arxiv.org/pdf/2501.02933
+//
 // # API Design
 //
 // Two Capability types:
@@ -42,6 +52,13 @@
 // Beyond that we have two high-level types: StatefulReader and StatefulWriter,
 // which encapsulate all the operational details of advancing state
 // after message processing.
+//
+// # TODOs
+//
+// This BACAP implementation could possibly be improved, here's a ticket for
+// completing the TODO tasks written by its original author:
+//
+// https://github.com/gh4rib/pqpg/internal/hpqc/issues/55
 package bacap
 
 import (
@@ -456,8 +473,8 @@ func NewWriteCapFromBytes(data []byte) (*WriteCap, error) {
 // with the UnmarshalBinary method.
 func NewEmptyWriteCap() *WriteCap {
 	return &WriteCap{
-		rootPrivateKey:       new(ed25519.PrivateKey),
-		rootPublicKey:        new(ed25519.PublicKey),
+		rootPrivateKey:  new(ed25519.PrivateKey),
+		rootPublicKey:   new(ed25519.PublicKey),
 		messageBoxIndex: NewEmptyMessageBoxIndex(),
 	}
 }
@@ -485,8 +502,8 @@ func (o *WriteCap) ReadCap() *ReadCap {
 // writer and readers in lockstep.
 func (o *WriteCap) MutateKDFState(ctx []byte) *WriteCap {
 	return &WriteCap{
-		rootPrivateKey:       o.rootPrivateKey,
-		rootPublicKey:        o.rootPublicKey,
+		rootPrivateKey:  o.rootPrivateKey,
+		rootPublicKey:   o.rootPublicKey,
 		messageBoxIndex: o.messageBoxIndex.MutateKDFState(ctx),
 	}
 }
@@ -585,7 +602,7 @@ var _ encoding.BinaryUnmarshaler = (*ReadCap)(nil)
 
 func NewEmptyReadCap() *ReadCap {
 	return &ReadCap{
-		rootPublicKey:        new(ed25519.PublicKey),
+		rootPublicKey:   new(ed25519.PublicKey),
 		messageBoxIndex: NewEmptyMessageBoxIndex(),
 	}
 }
@@ -637,7 +654,7 @@ func (u *ReadCap) UnmarshalBinary(data []byte) error {
 // same ctx. The root public key is shared with the receiver.
 func (u *ReadCap) MutateKDFState(ctx []byte) *ReadCap {
 	return &ReadCap{
-		rootPublicKey:        u.rootPublicKey,
+		rootPublicKey:   u.rootPublicKey,
 		messageBoxIndex: u.messageBoxIndex.MutateKDFState(ctx),
 	}
 }
@@ -894,7 +911,7 @@ func NewStatefulWriter(owner *WriteCap, ctx []byte) (*StatefulWriter, error) {
 	sw := &StatefulWriter{
 		Wcap:          owner,
 		Ctx:           ctxCopy,
-		LastOutboxIdx: nil,                        // No messages written yet
+		LastOutboxIdx: nil,                   // No messages written yet
 		NextIndex:     owner.messageBoxIndex, // start at the cap's message box index (not skipping)
 	}
 	return sw, nil

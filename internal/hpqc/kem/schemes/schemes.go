@@ -3,18 +3,18 @@ package schemes
 import (
 	"strings"
 
-	"github.com/katzenpost/circl/kem/frodo/frodo640shake"
-	"github.com/katzenpost/circl/kem/kyber/kyber768"
-	"github.com/katzenpost/circl/kem/mceliece/mceliece348864"
-	"github.com/katzenpost/circl/kem/mceliece/mceliece348864f"
-	"github.com/katzenpost/circl/kem/mceliece/mceliece460896"
-	"github.com/katzenpost/circl/kem/mceliece/mceliece460896f"
-	"github.com/katzenpost/circl/kem/mceliece/mceliece6688128"
-	"github.com/katzenpost/circl/kem/mceliece/mceliece6688128f"
-	"github.com/katzenpost/circl/kem/mceliece/mceliece6960119"
-	"github.com/katzenpost/circl/kem/mceliece/mceliece6960119f"
-	"github.com/katzenpost/circl/kem/mceliece/mceliece8192128"
-	"github.com/katzenpost/circl/kem/mceliece/mceliece8192128f"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/kem/frodo/frodo640shake"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/kem/kyber/kyber768"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/kem/mceliece/mceliece348864"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/kem/mceliece/mceliece348864f"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/kem/mceliece/mceliece460896"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/kem/mceliece/mceliece460896f"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/kem/mceliece/mceliece6688128"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/kem/mceliece/mceliece6688128f"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/kem/mceliece/mceliece6960119"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/kem/mceliece/mceliece6960119f"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/kem/mceliece/mceliece8192128"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/kem/mceliece/mceliece8192128f"
 
 	"github.com/gh4rib/pqpg/internal/hpqc/kem"
 	"github.com/gh4rib/pqpg/internal/hpqc/kem/adapter"
@@ -76,7 +76,7 @@ var allSchemes = []kem.Scheme{
 	// classical KEM schemes (converted from NIKE via hashed elgamal construction)
 
 	// Classical DiffieHellman imeplementation has a bug with this ticket:
-	// https://github.com/katzenpost/hpqc/issues/39
+	// https://github.com/gh4rib/pqpg/internal/hpqc/issues/39
 	//adapter.FromNIKE(diffiehellman.Scheme()),
 
 	adapter.FromNIKE(x25519.Scheme(rand.Reader)),

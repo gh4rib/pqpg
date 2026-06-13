@@ -6,9 +6,9 @@ package schemes
 import (
 	"strings"
 
-	"github.com/katzenpost/circl/sign/ed448"
-	"github.com/katzenpost/circl/sign/eddilithium2"
-	"github.com/katzenpost/circl/sign/eddilithium3"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/sign/ed448"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/sign/eddilithium2"
+	"github.com/gh4rib/pqpg/internal/hpqc/circl/sign/eddilithium3"
 
 	"github.com/gh4rib/pqpg/internal/hpqc/sign"
 	"github.com/gh4rib/pqpg/internal/hpqc/sign/circlsign"

@@ -25,10 +25,10 @@ import (
 const KeySeedSize = mldsa.PrivateKeySize
 
 type scheme struct {
-	name        string
-	params      *mldsa.Parameters
-	pubKeySize  int
-	signSize    int
+	name       string
+	params     *mldsa.Parameters
+	pubKeySize int
+	signSize   int
 }
 
 var _ sign.Scheme = (*scheme)(nil)

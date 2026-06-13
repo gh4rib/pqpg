@@ -25,8 +25,8 @@ import (
 	"math/rand"
 	"sync"
 
-	"github.com/katzenpost/chacha20"
 	"github.com/gh4rib/pqpg/internal/hpqc/util"
+	"github.com/katzenpost/chacha20"
 )
 
 const seedSize = chacha20.KeySize

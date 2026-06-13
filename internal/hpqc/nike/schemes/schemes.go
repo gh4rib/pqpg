@@ -24,7 +24,7 @@ var potentialSchemes = [...]nike.Scheme{
 
 	// hybrid NIKE schemes
 
-	// see ticket https://github.com/katzenpost/hpqc/issues/34
+	// see ticket https://github.com/gh4rib/pqpg/internal/hpqc/issues/34
 	//hybrid.CTIDH511X25519,
 
 	hybrid.CTIDH512X25519,
@@ -42,7 +42,7 @@ var allSchemes = []nike.Scheme{
 	x448.Scheme(rand.Reader),
 
 	// Classical DiffieHellman imeplementation has a bug with this ticket:
-	// https://github.com/katzenpost/hpqc/issues/39
+	// https://github.com/gh4rib/pqpg/internal/hpqc/issues/39
 	//diffiehellman.Scheme(),
 }
 

@@ -5,7 +5,7 @@
 package circlkem
 
 import (
-	circlKem "github.com/katzenpost/circl/kem"
+	circlKem "github.com/gh4rib/pqpg/internal/hpqc/circl/kem"
 
 	"github.com/gh4rib/pqpg/internal/hpqc/kem"
 )

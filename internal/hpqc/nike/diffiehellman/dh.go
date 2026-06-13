@@ -12,7 +12,6 @@ import (
 
 	"github.com/gh4rib/pqpg/internal/elixxir-crypto/cyclic"
 	"github.com/gh4rib/pqpg/internal/elixxir-crypto/diffieHellman"
-
 	"github.com/gh4rib/pqpg/internal/xx-network-crypto/large"
 
 	"github.com/gh4rib/pqpg/internal/hpqc/nike"

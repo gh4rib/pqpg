@@ -128,6 +128,61 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 	fmt.Println(" 68) Pure Skein-256 L5     [Hybrid-ML-KEM-1024+X448  | Hybrid-ML-DSA-87+Ed25519        | Threefish-256-EtM  | Skein-256]")
 	fmt.Println(" 69) Pure Skein-512 Cons.  [Hybrid-FrodoKEM-640+X448 | Hybrid-SLH-DSA-SHAKE-256s+Ed448 | Threefish-512-EtM  | Skein-512]")
 	fmt.Println(" 70) Pure Skein-1024 Max   [Hybrid-ML-KEM-768+X25519 | Hybrid-Dilithium5+Ed25519       | Threefish-1024-EtM | Skein-1024]")
+	fmt.Println("\n --- 10. HPQC NATIVE HYBRIDS (KATZENPOST CGO OPTIMIZED) ---")
+	fmt.Println("  71) HQC-128 Native L1    [Hpqc-HQC-128-X25519               | Hpqc-Falcon-padded-512-Ed25519  | AES-256-GCM       | SHAKE256]")
+	fmt.Println("  72) HQC-192 Native L3    [Hpqc-HQC-192-X25519               | Hpqc-Falcon-padded-1024-Ed25519 | ChaCha20-Poly1305 | SHA3-512]")
+	fmt.Println("  73) HQC-256 Native L5    [Hpqc-HQC-256-X448                 | Hpqc-Falcon-padded-1024-Ed25519 | XAES-256-GCM      | SHA3-512]")
+	fmt.Println("  74) McEliece-3488 Native [Hpqc-mceliece348864-X25519        | Hpqc-Falcon-padded-512-Ed25519  | XChaCha20-Poly1305| KangarooTwelve]")
+	fmt.Println("  75) McEliece-4608 Native [Hpqc-mceliece460896-X25519        | Hpqc-Falcon-padded-1024-Ed25519 | AES-256-GCM-SIV   | BLAKE3-512]")
+	fmt.Println("  76) McEliece-6688 Native [Hpqc-mceliece6688128-X25519       | Hpqc-Falcon-padded-1024-Ed25519 | Deoxys-II-256-128 | Skein-512]")
+	fmt.Println("  77) McEliece-6960 Native [Hpqc-mceliece6960119-X25519       | Hpqc-Falcon-padded-1024-Ed25519 | Camellia-256-EtM  | SHA3-512]")
+	fmt.Println("  78) McEliece-8192 Max    [Hpqc-mceliece8192128-X25519       | Hpqc-Falcon-padded-1024-Ed25519 | Serpent-256-EtM   | BLAKE3-512]")
+	fmt.Println("  79) McEliece-8192 Fast   [Hpqc-mceliece8192128f-X25519      | Hpqc-Falcon-padded-1024-Ed25519 | Threefish-512-EtM | Skein-1024]")
+	fmt.Println("  80) SNTRUP 4591761 Native[Hpqc-sntrup4591761-X448           | Hpqc-Falcon-padded-1024-Ed25519 | Ascon-80pq        | SHA3-512]")
+	fmt.Println("\n --- 11. PQPG DYNAMIC HYBRIDS (HPQC KEM + HPQC DSA + DYNAMIC X448/ED448) ---")
+	fmt.Println("  81) HQC-128 Dyn X448     [Hybrid-Hpqc-HQC-128+X448          | Hybrid-Hpqc-Falcon-padded-512+Ed448  | AES-256-GCM       | SHA3-512]")
+	fmt.Println("  82) HQC-256 Dyn X448     [Hybrid-Hpqc-HQC-256+X448          | Hybrid-Hpqc-Falcon-padded-1024+Ed448 | ChaCha20-Poly1305 | BLAKE3-512]")
+	fmt.Println("  83) McEliece-3488 Dyn    [Hybrid-Hpqc-mceliece348864+X448   | Hybrid-Hpqc-Falcon-padded-512+Ed448  | XAES-256-GCM      | KangarooTwelve]")
+	fmt.Println("  84) McEliece-6688 Dyn    [Hybrid-Hpqc-mceliece6688128+X448  | Hybrid-Hpqc-Falcon-padded-1024+Ed448 | XChaCha20-Poly1305| Skein-512]")
+	fmt.Println("  85) McEliece-8192 Max Dyn[Hybrid-Hpqc-mceliece8192128+X448  | Hybrid-Hpqc-Falcon-padded-1024+Ed448 | AES-256-GCM-SIV   | SHA3-512]")
+	fmt.Println("  86) McEliece-8192 Fast   [Hybrid-Hpqc-mceliece8192128f+X448 | Hybrid-Hpqc-Falcon-padded-1024+Ed448 | Deoxys-II-256-128 | BLAKE3-512]")
+	fmt.Println("  87) SNTRUP Dyn X448      [Hybrid-Hpqc-sntrup4591761+X448    | Hybrid-Hpqc-Falcon-padded-1024+Ed448 | Camellia-256-EtM  | Skein-1024]")
+	fmt.Println("  88) HQC-256 Dyn X25519   [Hybrid-Hpqc-HQC-256+X25519        | Hybrid-Hpqc-Falcon-padded-1024+Ed448 | Serpent-256-EtM   | SHA3-512]")
+	fmt.Println("  89) McEliece-8192 / X25519[Hybrid-Hpqc-mceliece8192128+X25519| Hybrid-Hpqc-Falcon-padded-1024+Ed448| Threefish-1024-EtM| KangarooTwelve]")
+	fmt.Println("  90) SNTRUP Dyn X25519    [Hybrid-Hpqc-sntrup4591761+X25519  | Hybrid-Hpqc-Falcon-padded-1024+Ed448 | Ascon-80pq        | BLAKE3-512]")
+	fmt.Println("\n --- 12. CROSS-LIBRARY COMPOSITES (HPQC KEM + CIRCL DSA) ---")
+	fmt.Println("  91) HQC-256 / ML-DSA     [Hpqc-HQC-256-X448                 | Hybrid-ML-DSA-87+Ed448          | AES-256-GCM       | SHA3-512]")
+	fmt.Println("  92) HQC-256 / SLH-DSA    [Hybrid-Hpqc-HQC-256+X448          | Hybrid-SLH-DSA-SHAKE-256s+Ed448 | ChaCha20-Poly1305 | KangarooTwelve]")
+	fmt.Println("  93) McEliece / Dilithium [Hpqc-mceliece8192128-X25519       | Hybrid-Dilithium5+Ed448         | XAES-256-GCM      | BLAKE3-512]")
+	fmt.Println("  94) McEliece / ML-DSA    [Hybrid-Hpqc-mceliece8192128+X448  | Hybrid-ML-DSA-87+Ed25519        | XChaCha20-Poly1305| Skein-1024]")
+	fmt.Println("  95) SNTRUP / SLH-DSA     [Hpqc-sntrup4591761-X448           | Hybrid-SLH-DSA-SHA2-256s+Ed448  | AES-256-GCM-SIV   | SHA3-512]")
+	fmt.Println("  96) SNTRUP / Dilithium   [Hybrid-Hpqc-sntrup4591761+X448    | Hybrid-Dilithium5+Ed25519       | Deoxys-II-256-128 | BLAKE3-512]")
+	fmt.Println("  97) McEliece6960 / ML-DSA[Hpqc-mceliece6960119-X25519       | Hybrid-ML-DSA-87+Ed448          | Camellia-256-EtM  | KangarooTwelve]")
+	fmt.Println("  98) HQC-192 / SLH-DSA    [Hpqc-HQC-192-X25519               | Hybrid-SLH-DSA-SHAKE-256s+Ed25519| Serpent-256-EtM  | Skein-512]")
+	fmt.Println("  99) McElieceFast / Dilith[Hybrid-Hpqc-mceliece8192128f+X448 | Hybrid-Dilithium5+Ed448         | Threefish-1024-EtM| SHA3-512]")
+	fmt.Println(" 100) SNTRUP / ML-DSA      [Hybrid-Hpqc-sntrup4591761+X25519  | Hybrid-ML-DSA-87+Ed25519        | Ascon-128         | BLAKE3-512]")
+	fmt.Println("\n --- 13. CROSS-LIBRARY COMPOSITES (CIRCL KEM + HPQC DSA) ---")
+	fmt.Println(" 101) ML-KEM / Falcon      [Hybrid-ML-KEM-1024+X448           | Hpqc-Falcon-padded-1024-Ed25519 | AES-256-GCM       | SHA3-512]")
+	fmt.Println(" 102) ML-KEM / Dyn Falcon  [Hybrid-ML-KEM-768+X25519          | Hybrid-Hpqc-Falcon-padded-1024+Ed448 | ChaCha20-Poly1305| BLAKE3-512]")
+	fmt.Println(" 103) Kyber / Falcon       [Hybrid-Kyber1024+X448             | Hpqc-Falcon-padded-1024-Ed25519 | XAES-256-GCM      | Skein-1024]")
+	fmt.Println(" 104) Frodo / Dyn Falcon   [Hybrid-FrodoKEM-640-SHAKE+X448    | Hybrid-Hpqc-Falcon-padded-1024+Ed448 | XChaCha20-Poly1305| SHA3-512]")
+	fmt.Println(" 105) ML-KEM / Falcon SIV  [Hybrid-ML-KEM-1024+X25519         | Hpqc-Falcon-padded-1024-Ed25519 | AES-256-GCM-SIV   | KangarooTwelve]")
+	fmt.Println(" 106) Frodo / Dyn Falcon   [Hybrid-FrodoKEM-640-SHAKE+X25519  | Hybrid-Hpqc-Falcon-padded-1024+Ed448 | Deoxys-II-256-128 | BLAKE3-512]")
+	fmt.Println(" 107) ML-KEM / Falcon 512  [Hybrid-ML-KEM-768+X448            | Hpqc-Falcon-padded-512-Ed25519  | Camellia-256-EtM  | SHA3-512]")
+	fmt.Println(" 108) Kyber / Dyn Falcon   [Hybrid-Kyber1024+X448             | Hybrid-Hpqc-Falcon-padded-1024+Ed448 | Serpent-256-EtM  | Skein-512]")
+	fmt.Println(" 109) ML-KEM / Threefish   [Hybrid-ML-KEM-1024+X448           | Hpqc-Falcon-padded-1024-Ed25519 | Threefish-1024-EtM| SHA3-512]")
+	fmt.Println(" 110) Frodo / Ascon        [Hybrid-FrodoKEM-640-SHAKE+X448    | Hybrid-Hpqc-Falcon-padded-1024+Ed448 | Ascon-80pq   | BLAKE3-512]")
+	fmt.Println("\n --- 14. ULTIMATE CROSS-LIBRARY STATEFUL (HPQC KEM + OQS STATEFUL) ---")
+	fmt.Println(" 111) McEliece + LMS Max   [Hpqc-mceliece8192128-X25519       | LMS_H25_W8                      | AES-256-GCM       | SHA3-512]")
+	fmt.Println(" 112) HQC + XMSSMT Max     [Hybrid-Hpqc-HQC-256+X448          | XMSSMT-SHA2_60/12_512           | ChaCha20-Poly1305 | BLAKE3-512]")
+	fmt.Println(" 113) SNTRUP + LMS Compact [Hpqc-sntrup4591761-X448           | LMS_H20_W4                      | XAES-256-GCM      | KangarooTwelve]")
+	fmt.Println(" 114) McEliece + XMSS SHAKE[Hybrid-Hpqc-mceliece8192128+X448  | XMSSMT-SHAKE256_60/12_512       | XChaCha20-Poly1305| Skein-1024]")
+	fmt.Println(" 115) HQC + LMS Balanced   [Hpqc-HQC-256-X448                 | LMS_H25_W4                      | AES-256-GCM-SIV   | SHA3-512]")
+	fmt.Println(" 116) McElieceFast + XMSS  [Hpqc-mceliece8192128f-X25519      | XMSS-SHA2_20_512                | Deoxys-II-256-128 | BLAKE3-512]")
+	fmt.Println(" 117) SNTRUP + LMS Max     [Hybrid-Hpqc-sntrup4591761+X448    | LMS_H20_W8                      | Camellia-256-EtM  | SHA3-512]")
+	fmt.Println(" 118) McEliece6960 + XMSSMT[Hpqc-mceliece6960119-X25519       | XMSSMT-SHA2_40/8_512            | Serpent-256-EtM   | Skein-512]")
+	fmt.Println(" 119) HQC + Threefish1024  [Hybrid-Hpqc-HQC-256+X448          | LMS_H25_W8                      | Threefish-1024-EtM| SHA3-512]")
+	fmt.Println(" 120) McEliece + Threefish [Hybrid-Hpqc-mceliece8192128+X448  | XMSSMT-SHAKE256_60/12_512       | Threefish-1024-EtM| Skein-1024]")
 	fmt.Println("=========================================================================================")
 	fmt.Print("Choice [1-70]: ")
 
@@ -275,6 +330,115 @@ func handleGenerateIdentity(reader *bufio.Reader) {
 		kem, dsa, aead, xof = "Hybrid-FrodoKEM-640-SHAKE+X448", "Hybrid-SLH-DSA-SHAKE-256s+Ed448", "Threefish-512-EtM", "Skein-512"
 	case "70":
 		kem, dsa, aead, xof = "Hybrid-ML-KEM-768+X25519", "Hybrid-Dilithium5+Ed25519", "Threefish-1024-EtM", "Skein-1024"
+		// --- 10. HPQC NATIVE HYBRIDS (KATZENPOST CGO OPTIMIZED) ---
+	case "71":
+		kem, dsa, aead, xof = "Hpqc-HQC-128-X25519", "Hpqc-Falcon-padded-512-Ed25519", "AES-256-GCM", "SHAKE256"
+	case "72":
+		kem, dsa, aead, xof = "Hpqc-HQC-192-X25519", "Hpqc-Falcon-padded-1024-Ed25519", "ChaCha20-Poly1305", "SHA3-512"
+	case "73":
+		kem, dsa, aead, xof = "Hpqc-HQC-256-X448", "Hpqc-Falcon-padded-1024-Ed25519", "XAES-256-GCM", "SHA3-512"
+	case "74":
+		kem, dsa, aead, xof = "Hpqc-mceliece348864-X25519", "Hpqc-Falcon-padded-512-Ed25519", "XChaCha20-Poly1305", "KangarooTwelve"
+	case "75":
+		kem, dsa, aead, xof = "Hpqc-mceliece460896-X25519", "Hpqc-Falcon-padded-1024-Ed25519", "AES-256-GCM-SIV", "BLAKE3-512"
+	case "76":
+		kem, dsa, aead, xof = "Hpqc-mceliece6688128-X25519", "Hpqc-Falcon-padded-1024-Ed25519", "Deoxys-II-256-128", "Skein-512"
+	case "77":
+		kem, dsa, aead, xof = "Hpqc-mceliece6960119-X25519", "Hpqc-Falcon-padded-1024-Ed25519", "Camellia-256-EtM", "SHA3-512"
+	case "78":
+		kem, dsa, aead, xof = "Hpqc-mceliece8192128-X25519", "Hpqc-Falcon-padded-1024-Ed25519", "Serpent-256-EtM", "BLAKE3-512"
+	case "79":
+		kem, dsa, aead, xof = "Hpqc-mceliece8192128f-X25519", "Hpqc-Falcon-padded-1024-Ed25519", "Threefish-512-EtM", "Skein-1024"
+	case "80":
+		kem, dsa, aead, xof = "Hpqc-sntrup4591761-X448", "Hpqc-Falcon-padded-1024-Ed25519", "Ascon-80pq", "SHA3-512"
+
+	// --- 11. PQPG DYNAMIC HYBRIDS (HPQC KEM + HPQC DSA + DYNAMIC X448/ED448) ---
+	case "81":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-HQC-128+X448", "Hybrid-Hpqc-Falcon-padded-512+Ed448", "AES-256-GCM", "SHA3-512"
+	case "82":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-HQC-256+X448", "Hybrid-Hpqc-Falcon-padded-1024+Ed448", "ChaCha20-Poly1305", "BLAKE3-512"
+	case "83":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-mceliece348864+X448", "Hybrid-Hpqc-Falcon-padded-512+Ed448", "XAES-256-GCM", "KangarooTwelve"
+	case "84":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-mceliece6688128+X448", "Hybrid-Hpqc-Falcon-padded-1024+Ed448", "XChaCha20-Poly1305", "Skein-512"
+	case "85":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-mceliece8192128+X448", "Hybrid-Hpqc-Falcon-padded-1024+Ed448", "AES-256-GCM-SIV", "SHA3-512"
+	case "86":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-mceliece8192128f+X448", "Hybrid-Hpqc-Falcon-padded-1024+Ed448", "Deoxys-II-256-128", "BLAKE3-512"
+	case "87":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-sntrup4591761+X448", "Hybrid-Hpqc-Falcon-padded-1024+Ed448", "Camellia-256-EtM", "Skein-1024"
+	case "88":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-HQC-256+X25519", "Hybrid-Hpqc-Falcon-padded-1024+Ed448", "Serpent-256-EtM", "SHA3-512"
+	case "89":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-mceliece8192128+X25519", "Hybrid-Hpqc-Falcon-padded-1024+Ed448", "Threefish-1024-EtM", "KangarooTwelve"
+	case "90":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-sntrup4591761+X25519", "Hybrid-Hpqc-Falcon-padded-1024+Ed448", "Ascon-80pq", "BLAKE3-512"
+
+	// --- 12. CROSS-LIBRARY COMPOSITES (HPQC KEM + CIRCL DSA) ---
+	case "91":
+		kem, dsa, aead, xof = "Hpqc-HQC-256-X448", "Hybrid-ML-DSA-87+Ed448", "AES-256-GCM", "SHA3-512"
+	case "92":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-HQC-256+X448", "Hybrid-SLH-DSA-SHAKE-256s+Ed448", "ChaCha20-Poly1305", "KangarooTwelve"
+	case "93":
+		kem, dsa, aead, xof = "Hpqc-mceliece8192128-X25519", "Hybrid-Dilithium5+Ed448", "XAES-256-GCM", "BLAKE3-512"
+	case "94":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-mceliece8192128+X448", "Hybrid-ML-DSA-87+Ed25519", "XChaCha20-Poly1305", "Skein-1024"
+	case "95":
+		kem, dsa, aead, xof = "Hpqc-sntrup4591761-X448", "Hybrid-SLH-DSA-SHA2-256s+Ed448", "AES-256-GCM-SIV", "SHA3-512"
+	case "96":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-sntrup4591761+X448", "Hybrid-Dilithium5+Ed25519", "Deoxys-II-256-128", "BLAKE3-512"
+	case "97":
+		kem, dsa, aead, xof = "Hpqc-mceliece6960119-X25519", "Hybrid-ML-DSA-87+Ed448", "Camellia-256-EtM", "KangarooTwelve"
+	case "98":
+		kem, dsa, aead, xof = "Hpqc-HQC-192-X25519", "Hybrid-SLH-DSA-SHAKE-256s+Ed25519", "Serpent-256-EtM", "Skein-512"
+	case "99":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-mceliece8192128f+X448", "Hybrid-Dilithium5+Ed448", "Threefish-1024-EtM", "SHA3-512"
+	case "100":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-sntrup4591761+X25519", "Hybrid-ML-DSA-87+Ed25519", "Ascon-128", "BLAKE3-512"
+
+	// --- 13. CROSS-LIBRARY COMPOSITES (CIRCL KEM + HPQC DSA) ---
+	case "101":
+		kem, dsa, aead, xof = "Hybrid-ML-KEM-1024+X448", "Hpqc-Falcon-padded-1024-Ed25519", "AES-256-GCM", "SHA3-512"
+	case "102":
+		kem, dsa, aead, xof = "Hybrid-ML-KEM-768+X25519", "Hybrid-Hpqc-Falcon-padded-1024+Ed448", "ChaCha20-Poly1305", "BLAKE3-512"
+	case "103":
+		kem, dsa, aead, xof = "Hybrid-Kyber1024+X448", "Hpqc-Falcon-padded-1024-Ed25519", "XAES-256-GCM", "Skein-1024"
+	case "104":
+		kem, dsa, aead, xof = "Hybrid-FrodoKEM-640-SHAKE+X448", "Hybrid-Hpqc-Falcon-padded-1024+Ed448", "XChaCha20-Poly1305", "SHA3-512"
+	case "105":
+		kem, dsa, aead, xof = "Hybrid-ML-KEM-1024+X25519", "Hpqc-Falcon-padded-1024-Ed25519", "AES-256-GCM-SIV", "KangarooTwelve"
+	case "106":
+		kem, dsa, aead, xof = "Hybrid-FrodoKEM-640-SHAKE+X25519", "Hybrid-Hpqc-Falcon-padded-1024+Ed448", "Deoxys-II-256-128", "BLAKE3-512"
+	case "107":
+		kem, dsa, aead, xof = "Hybrid-ML-KEM-768+X448", "Hpqc-Falcon-padded-512-Ed25519", "Camellia-256-EtM", "SHA3-512"
+	case "108":
+		kem, dsa, aead, xof = "Hybrid-Kyber1024+X448", "Hybrid-Hpqc-Falcon-padded-1024+Ed448", "Serpent-256-EtM", "Skein-512"
+	case "109":
+		kem, dsa, aead, xof = "Hybrid-ML-KEM-1024+X448", "Hpqc-Falcon-padded-1024-Ed25519", "Threefish-1024-EtM", "SHA3-512"
+	case "110":
+		kem, dsa, aead, xof = "Hybrid-FrodoKEM-640-SHAKE+X448", "Hybrid-Hpqc-Falcon-padded-1024+Ed448", "Ascon-80pq", "BLAKE3-512"
+
+	// --- 14. ULTIMATE CROSS-LIBRARY STATEFUL (HPQC KEM + OQS STATEFUL) ---
+	case "111":
+		kem, dsa, aead, xof = "Hpqc-mceliece8192128-X25519", "LMS_H25_W8", "AES-256-GCM", "SHA3-512"
+	case "112":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-HQC-256+X448", "XMSSMT-SHA2_60/12_512", "ChaCha20-Poly1305", "BLAKE3-512"
+	case "113":
+		kem, dsa, aead, xof = "Hpqc-sntrup4591761-X448", "LMS_H20_W4", "XAES-256-GCM", "KangarooTwelve"
+	case "114":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-mceliece8192128+X448", "XMSSMT-SHAKE256_60/12_512", "XChaCha20-Poly1305", "Skein-1024"
+	case "115":
+		kem, dsa, aead, xof = "Hpqc-HQC-256-X448", "LMS_H25_W4", "AES-256-GCM-SIV", "SHA3-512"
+	case "116":
+		kem, dsa, aead, xof = "Hpqc-mceliece8192128f-X25519", "XMSS-SHA2_20_512", "Deoxys-II-256-128", "BLAKE3-512"
+	case "117":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-sntrup4591761+X448", "LMS_H20_W8", "Camellia-256-EtM", "SHA3-512"
+	case "118":
+		kem, dsa, aead, xof = "Hpqc-mceliece6960119-X25519", "XMSSMT-SHA2_40/8_512", "Serpent-256-EtM", "Skein-512"
+	case "119":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-HQC-256+X448", "LMS_H25_W8", "Threefish-1024-EtM", "SHA3-512"
+	case "120":
+		kem, dsa, aead, xof = "Hybrid-Hpqc-mceliece8192128+X448", "XMSSMT-SHAKE256_60/12_512", "Threefish-1024-EtM", "Skein-1024"
 	default:
 		fmt.Println("[-] Invalid choice. Aborting.")
 		return

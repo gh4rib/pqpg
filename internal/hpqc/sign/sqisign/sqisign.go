@@ -1,7 +1,13 @@
+// SPDX-FileCopyrightText: (c) 2026 David Stainton
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //go:build linux && amd64
 
 // Package sqisign implements the hpqc sign.Scheme interface for SQIsign
-// level 1.
+// level 1. The actual cryptographic work is performed by the
+// github.com/katzenpost/sqisign/bindings/go binding, which links a
+// vendored copy of the Rust port's sqisign-ffi staticlib through cgo.
+//
 // Randomness comes from hpqc/rand.Reader, not crypto/rand and not any
 // NIST CTR-DRBG. The binding exposes an io.Reader-driven API and we
 // thread hpqc/rand through it on every keypair and every signature;
@@ -15,6 +21,10 @@
 // This wrapper matches that reach with a `//go:build linux && amd64`
 // constraint; on other platforms the package is empty and the
 // SQIsignLvl1Ed25519 hybrid in sign/hybrid is not defined either.
+//
+// SQIsign is an NIST Round 2 candidate; this implementation has not been
+// audited. Treat it as experimental. See the upstream repository's
+// SECURITY.md before deploying it anywhere that matters.
 package sqisign
 
 import (
@@ -24,7 +34,7 @@ import (
 
 	"golang.org/x/crypto/blake2b"
 
-	sqisignbinding "github.com/katzenpost/sqisign/bindings/go/sqisign"
+	sqisignbinding "github.com/gh4rib/pqpg/internal/hpqc/sqisign/bindings/go/sqisign"
 
 	hpqcrand "github.com/gh4rib/pqpg/internal/hpqc/rand"
 	"github.com/gh4rib/pqpg/internal/hpqc/sign"
