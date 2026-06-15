@@ -23,7 +23,7 @@ import (
 func StatelessSeal(in io.Reader, out io.Writer, myKr *identity.Keyring, receiverProf *identity.Profile, compression string) error {
 	registry := crypto.NewRegistry()
 
-	msgID := make([]byte, 32)
+	msgID := make([]byte, MsgIDSize)
 	_, _ = io.ReadFull(rand.Reader, msgID)
 
 	ct, ss, err := crypto.EncapsulateEphemeral(receiverProf.KEMSuite, receiverProf.KEMPubKey)
@@ -35,7 +35,7 @@ func StatelessSeal(in io.Reader, out io.Writer, myKr *identity.Keyring, receiver
 	xof, _ := registry.GetXOF(receiverProf.XOFSuite)
 	xof.Write([]byte("PQPG-Stateless-MasterKey"))
 	xof.Write(ss)
-	messageKey := xof.Derive(nil, 64)
+	messageKey := xof.Derive(nil, XOFDeriveSize)
 	defer crypto.Wipe(messageKey) // HYGIENE
 
 	aead, err := registry.GetAEAD(receiverProf.AEADSuite)
@@ -249,7 +249,7 @@ func StatelessOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionSt
 	xof, _ := registry.GetXOF(outer.OuterXOFSuite)
 	xof.Write([]byte("PQPG-Stateless-MasterKey"))
 	xof.Write(ss)
-	messageKey := xof.Derive(nil, 64)
+	messageKey := xof.Derive(nil, XOFDeriveSize)
 	defer crypto.Wipe(messageKey)
 
 	aead, err := registry.GetAEAD(outer.OuterAEADSuite)
@@ -362,7 +362,7 @@ func StatelessOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionSt
 		sigB64, _ := reader.ReadString('\n')
 		signature, _ := base64.StdEncoding.DecodeString(strings.TrimSpace(sigB64))
 
-		digest := fiatShamirXOF.Derive(nil, 64)
+		digest := fiatShamirXOF.Derive(nil, XOFDeriveSize)
 		dsa, _ := registry.GetDSA(inner.DSASuite)
 		if !dsa.Verify(senderProf.DSAPubKey, digest, signature) {
 			loopErr = errors.New("CRITICAL ALARM: FIAT-SHAMIR BINDING TAMPERED")

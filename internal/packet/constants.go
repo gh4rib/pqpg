@@ -29,12 +29,16 @@ const (
 	EndBoundary         = "-----END PQC MESSAGE-----"
 	ChunkSize           = 64 * 1024
 	InnerHeaderSize     = 1024
+	SaltSize            = 32
+	MsgIDSize           = 32
+	XOFDeriveSize       = 64
 )
 
 const (
-	VaultHeaderBoundary  = "-----BEGIN PQPG PERSONAL VAULT-----"
-	VaultPayloadBoundary = "-----BEGIN VAULT PAYLOAD-----"
-	VaultEndBoundary     = "-----END PQPG VAULT-----"
+	VaultKeyExpansionVersion = "PQPG-Vault-Key-Expansion-v1"
+	VaultHeaderBoundary      = "-----BEGIN PQPG VAULT METADATA-----"
+	VaultPayloadBoundary     = "-----BEGIN PQPG VAULT PAYLOAD-----"
+	VaultEndBoundary         = "-----END PQPG VAULT-----"
 )
 
 // ASCII Armor Headers

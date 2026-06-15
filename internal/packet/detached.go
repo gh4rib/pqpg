@@ -13,7 +13,6 @@ import (
 	"github.com/gh4rib/pqpg/internal/identity"
 )
 
-
 type DetachedSignature struct {
 	SenderName string `json:"sender_name"`
 	Timestamp  int64  `json:"timestamp"`
@@ -40,7 +39,7 @@ func SignCleartextStream(in io.Reader, senderKr *identity.Keyring, hashSuite str
 	}
 
 	// 64-byte digest standardizes the DSA signing block
-	digest := hasher.Derive(nil, 64)
+	digest := hasher.Derive(nil, XOFDeriveSize)
 
 	dsa, _ := registry.GetDSA(senderKr.Profile.DSASuite)
 	sigBytes, err := dsa.Sign(senderKr.DSAPrivKey, digest)
@@ -108,7 +107,7 @@ func VerifyCleartextStream(in io.Reader, armoredSig string, senderProf *identity
 	if _, err := io.Copy(hasher.NewWriter(), in); err != nil {
 		return fmt.Errorf("file hashing interrupted: %w", err)
 	}
-	digest := hasher.Derive(nil, 64)
+	digest := hasher.Derive(nil, XOFDeriveSize)
 
 	dsa, err := registry.GetDSA(sigStruct.DSASuite)
 	if err != nil {

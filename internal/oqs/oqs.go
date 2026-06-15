@@ -1,4 +1,4 @@
-//go:build linux && amd64
+//go:build linux && (amd64 || arm64)
 
 // Package oqs provides a GO wrapper for the C liboqs quantum-resistant library.
 package oqs

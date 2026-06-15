@@ -29,7 +29,7 @@ func SignStatefulCleartextStream(in io.Reader, senderKr *identity.Keyring, hashS
 	if _, err := io.Copy(hasher.NewWriter(), in); err != nil {
 		return "", fmt.Errorf("file hashing interrupted: %w", err)
 	}
-	digest := hasher.Derive(nil, 64)
+	digest := hasher.Derive(nil, XOFDeriveSize)
 
 	statefulDSA, err := registry.GetStatefulDSA(senderKr.Profile.DSASuite)
 	if err != nil {
@@ -145,7 +145,7 @@ func VerifyStatefulCleartextStream(in io.Reader, armoredSig string, senderProf *
 	if _, err := io.Copy(hasher.NewWriter(), in); err != nil {
 		return fmt.Errorf("file hashing interrupted: %w", err)
 	}
-	digest := hasher.Derive(nil, 64)
+	digest := hasher.Derive(nil, XOFDeriveSize)
 
 	statefulDSA, err := registry.GetStatefulDSA(sigStruct.DSASuite)
 	if err != nil {

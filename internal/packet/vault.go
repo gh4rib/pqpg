@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"crypto/rand"
+	"crypto/sha512"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
@@ -16,6 +17,7 @@ import (
 	"github.com/gh4rib/pqpg/internal/crypto"
 	"github.com/gh4rib/pqpg/internal/identity"
 	"github.com/klauspost/compress/zstd"
+	"golang.org/x/crypto/hkdf"
 )
 
 type VaultMetadata struct {
@@ -26,6 +28,17 @@ type VaultMetadata struct {
 	Salt        []byte `json:"salt"`
 }
 
+// deriveVaultKey uses HKDF to guarantee that even fixed-length hashes (like SHA3-512)
+// can safely expand to output the massive 160-byte keys required by Threefish-1024.
+func deriveVaultKey(privKey, salt []byte, requiredLen int) []byte {
+	// We use SHA-512 as the underlying extraction hash for HKDF to guarantee
+	// sufficient entropy pool depth for massive post-quantum ciphers.
+	kdf := hkdf.New(sha512.New, privKey, salt, []byte(VaultKeyExpansionVersion))
+	vaultKey := make([]byte, requiredLen)
+	_, _ = io.ReadFull(kdf, vaultKey)
+	return vaultKey
+}
+
 func VaultSeal(in io.Reader, out io.Writer, myKr *identity.Keyring, compression string) error {
 	registry := crypto.NewRegistry()
 	aead, err := registry.GetAEAD(myKr.Profile.AEADSuite)
@@ -33,15 +46,11 @@ func VaultSeal(in io.Reader, out io.Writer, myKr *identity.Keyring, compression 
 		return err
 	}
 
-	salt := make([]byte, 32)
+	salt := make([]byte, SaltSize)
 	_, _ = io.ReadFull(rand.Reader, salt)
 
-	xof, _ := registry.GetXOF(myKr.Profile.XOFSuite)
-	xof.Write(salt)
-	xof.Write(myKr.KEMPrivKey)
-
-	// DYNAMIC KEY SIZING
-	vaultKey := xof.Derive(nil, aead.KeySize())
+	// DYNAMIC HKDF KEY EXPANSION
+	vaultKey := deriveVaultKey(myKr.KEMPrivKey, salt, aead.KeySize())
 	defer crypto.Wipe(vaultKey) // HYGIENE
 
 	baseNonce := make([]byte, aead.NonceSize())
@@ -157,12 +166,8 @@ func VaultOpen(in io.Reader, out io.Writer, myKr *identity.Keyring) error {
 		return err
 	}
 
-	xof, _ := registry.GetXOF(metadata.XOFSuite)
-	xof.Write(metadata.Salt)
-	xof.Write(myKr.KEMPrivKey)
-
-	// DYNAMIC KEY SIZING
-	vaultKey := xof.Derive(nil, aead.KeySize())
+	// DYNAMIC HKDF KEY EXPANSION
+	vaultKey := deriveVaultKey(myKr.KEMPrivKey, metadata.Salt, aead.KeySize())
 	defer crypto.Wipe(vaultKey) // HYGIENE
 
 	tempFile, err := os.CreateTemp("", "pqpg-vault-buffer-*")

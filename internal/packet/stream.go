@@ -80,7 +80,7 @@ func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 	registry := crypto.NewRegistry()
 	contactID := receiverProf.Fingerprint
 
-	msgID := make([]byte, 32)
+	msgID := make([]byte, MsgIDSize)
 	_, _ = io.ReadFull(rand.Reader, msgID)
 
 	state, err := sessionStore.LoadState(contactID)
@@ -92,7 +92,7 @@ func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 			}
 			defer crypto.Wipe(ss) // HYGIENE
 
-			root, sendChain := crypto.AdvanceRootRatchet(receiverProf.XOFSuite, make([]byte, 32), ss)
+			root, sendChain := crypto.AdvanceRootRatchet(receiverProf.XOFSuite, make([]byte, MsgIDSize), ss)
 			pub, priv, err := crypto.GenerateEphemeralKEM(myKr.Profile.KEMSuite)
 			if err != nil {
 				return err
@@ -102,7 +102,7 @@ func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 				ContactID:         contactID,
 				RootKey:           root,
 				SendChainKey:      sendChain,
-				ReceiveChainKey:   make([]byte, 32),
+				ReceiveChainKey:   make([]byte, MsgIDSize),
 				MyEphemeralPriv:   priv,
 				MyEphemeralPub:    pub,
 				TheirEphemeralPub: receiverProf.KEMPubKey,
@@ -294,7 +294,7 @@ func StreamSeal(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 		}
 	}
 
-	digest := fiatShamirXOF.Derive(nil, 64)
+	digest := fiatShamirXOF.Derive(nil, XOFDeriveSize)
 	dsa, _ := registry.GetDSA(myKr.Profile.DSASuite)
 	sig, err := dsa.Sign(myKr.DSAPrivKey, digest)
 	if err != nil {
@@ -363,12 +363,12 @@ func StreamOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 			}
 			defer crypto.Wipe(ss) // HYGIENE
 
-			root, recvChain := crypto.AdvanceRootRatchet(outer.OuterXOFSuite, make([]byte, 32), ss)
+			root, recvChain := crypto.AdvanceRootRatchet(outer.OuterXOFSuite, make([]byte, MsgIDSize), ss)
 
 			state = &identity.RatchetState{
 				ContactID:         contactID,
 				RootKey:           root,
-				SendChainKey:      make([]byte, 32),
+				SendChainKey:      make([]byte, MsgIDSize),
 				ReceiveChainKey:   recvChain,
 				MyEphemeralPriv:   nil,
 				MyEphemeralPub:    nil,
@@ -437,7 +437,7 @@ func StreamOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 
 		var root, recvChain []byte
 		if isStaticDecap {
-			root, recvChain = crypto.AdvanceRootRatchet(outer.OuterXOFSuite, make([]byte, 32), ss)
+			root, recvChain = crypto.AdvanceRootRatchet(outer.OuterXOFSuite, make([]byte, MsgIDSize), ss)
 		} else {
 			root, recvChain = crypto.AdvanceRootRatchet(outer.OuterXOFSuite, state.RootKey, ss)
 		}
@@ -613,7 +613,7 @@ func StreamOpen(in io.Reader, out io.Writer, sessionStore *identity.SessionStore
 		sigB64, _ := reader.ReadString('\n')
 		signature, _ := base64.StdEncoding.DecodeString(strings.TrimSpace(sigB64))
 
-		digest := fiatShamirXOF.Derive(nil, 64)
+		digest := fiatShamirXOF.Derive(nil, XOFDeriveSize)
 		dsa, _ := registry.GetDSA(inner.DSASuite)
 		if !dsa.Verify(senderProf.DSAPubKey, digest, signature) {
 			loopErr = errors.New("CRITICAL ALARM: FIAT-SHAMIR BINDING TAMPERED")
