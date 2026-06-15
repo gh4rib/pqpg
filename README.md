@@ -125,7 +125,7 @@ cd liboqs
 # Prepare the build directory
 mkdir build && cd build
 
-# Configure CMake for a Static Archive WITHOUT OpenSSL
+# Configure CMake for a Static Archive WITHOUT OpenSSL (AMD64)
 cmake -G Ninja \
   -DCMAKE_INSTALL_PREFIX=$(pwd)/../oqs_static_env \
   -DBUILD_SHARED_LIBS=OFF \
@@ -133,6 +133,17 @@ cmake -G Ninja \
   -DOQS_ENABLE_SIG_STFL_LMS=ON \
   -DOQS_ENABLE_SIG_STFL_XMSS=ON \
   -DOQS_HAZARDOUS_EXPERIMENTAL_ENABLE_SIG_STFL_KEY_SIG_GEN=ON \
+  ..
+  
+# Configure CMake for a Static Archive WITHOUT OpenSSL (ARM64)
+cmake -G Ninja \
+  -DCMAKE_INSTALL_PREFIX=$(pwd)/../oqs_static_env \
+  -DBUILD_SHARED_LIBS=OFF \
+  -DOQS_USE_OPENSSL=OFF \
+  -DOQS_ENABLE_SIG_STFL_LMS=ON \
+  -DOQS_ENABLE_SIG_STFL_XMSS=ON \
+  -DOQS_HAZARDOUS_EXPERIMENTAL_ENABLE_SIG_STFL_KEY_SIG_GEN=ON \
+  -DCMAKE_TOOLCHAIN_FILE=../.CMake/toolchain_arm64.cmake \
   ..
 
 # Compile and output the static archive to the isolated environment folder
@@ -145,6 +156,23 @@ cd ../..
 ### Phase 2: Build the PQPG Executable
 
 Once the `oqs_static_env` is successfully built, go to the `internal/oqs` and change the `cgo LDFLAGS` and `cgo CFLAGS` to the corresponding `liboqs.a` library path inside `cfuncs.go` and `oqs.go`.
+
+```bash
+
+# ARM64
+CGO_ENABLED=1 \
+CC=aarch64-linux-gnu-gcc \
+GOOS=linux \
+GOARCH=arm64 \
+go build -mod=vendor -compiler=gc -o pqpg-linux-arm64 ./cmd/messenger
+
+#AMD64
+CGO_ENABLED=1 \
+GOOS=linux \
+GOARCH=amd64 \
+go build -mod=vendor  -compiler=gc  -o pqpg-linux-amd64 ./cmd/messenger
+
+```
 
 ---
 
