@@ -13,7 +13,7 @@ func main() {
 	for {
 		fmt.Println("=====================================================================")
 		fmt.Println("             PQPG: POST-QUANTUM PRIVACY GUARD ENGINE                 ")
-		fmt.Println("       !! WARNING: The engines operations are NOT COMPATIBLE  !!      ")
+		fmt.Println("!! WARNING: The engines operations and keys are NOT COMPATIBLE WITH EACH OTHER !!")
 		fmt.Println("=====================================================================")
 		fmt.Println(" 1) CIRCL/HPQC Crypto Engine           [Multi-Platform]")
 		fmt.Println(" 2) Open-Quantum Safe Crypto Engine    [Linux Only]")
