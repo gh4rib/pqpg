@@ -2,7 +2,7 @@
 
 By utilizing Cloudflare's `circl` library, the **Open Quantum Safe (`liboqs`) C-FFI engine**, Katzenpost's **`hpqc` (Hybrid Post-Quantum Cryptography) engine**, and EPFL's `kyber` abstract algebra engine, PQPG implements the latest FIPS 203, 204, and 205 post-quantum standards alongside an exhaustive, mathematically absolute composite hybrid architecture. It guarantees absolute data confidentiality and metadata anonymity against both traditional and quantum adversaries.
 
-PQPG operates as an **Secured/Signed with Perfect Forward Secrecy(PFS) Privacy Guard (Double Ratchet)**, a **One-Shot Stateless Privacy Guard No (PFS)**, a **Personal Post-Quantum Vault**, a **Trustless Distributed Vault (Feldman VSS)**, a **Zero-Knowledge Time-Lock Engine**, a **Zero-Knowledge Data Notary (Proof of Breach)**, and an **Interoperable OpenPGP Node**, allowing users to wrap local files, directories, and networks inside an impenetrable quantum-resistant armor.
+PQPG operates as an **Secured/Signed with Perfect Forward Secrecy(PFS) Privacy Guard (Double Ratchet)**, a **One-Shot Stateless Privacy Guard (No PFS)**, a **Personal Post-Quantum Vault**, a **Trustless Distributed Vault (Feldman VSS)**, a **Zero-Knowledge Time-Lock Engine**, a **Zero-Knowledge Data Notary (Proof of Breach)**, and an **Interoperable OpenPGP Node**, allowing users to wrap local files, directories, and networks inside an impenetrable quantum-resistant armor.
 
 ---
 
